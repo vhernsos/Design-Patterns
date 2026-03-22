@@ -56,32 +56,6 @@ def event_detail(request, pk):
     })
 
 
-# ── Create ───────────────────────────────────────────────────────────────────
-@login_required
-def event_create(request):
-    if request.method == 'POST':
-        form        = EventoForm(request.POST)
-        config_form = ConfiguracionEventoForm(request.POST)
-        if form.is_valid() and config_form.is_valid():
-            evento = form.save(commit=False)
-            evento.organizador = request.user
-            evento.save()
-            form.save_m2m()
-            cfg       = config_form.save(commit=False)
-            cfg.evento = evento
-            cfg.save()
-            messages.success(request, f'Event "{evento.nombre}" created successfully.')
-            return redirect('event_detail', pk=evento.pk)
-    else:
-        form        = EventoForm()
-        config_form = ConfiguracionEventoForm()
-    return render(request, 'web/event_form.html', {
-        'form':        form,
-        'config_form': config_form,
-        'title':       'Create Event',
-    })
-
-
 # ── Update ───────────────────────────────────────────────────────────────────
 @login_required
 def event_update(request, pk):

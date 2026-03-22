@@ -23,7 +23,6 @@
 
   <ul class="navbar-nav">
     <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-    <li><a href="{% url 'event_create' %}">New Event</a></li>
     <li><a href="{% url 'build_event' %}">Build</a></li>
     {% if user.is_staff %}
     <li><a href="{% url 'global_config' %}">⚙ Config</a></li>
