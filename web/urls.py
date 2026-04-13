@@ -19,6 +19,10 @@ urlpatterns = [
     # Bridge
     path('events/<int:pk>/reporte/<str:tipo>/<str:formato>/',
          views.generar_reporte, name='generar_reporte'),
+    # Shortcut: single PDF download for complete report
+    path('events/<int:pk>/reporte/pdf/',
+         views.generar_reporte, {'tipo': 'completo', 'formato': 'pdf'},
+         name='generar_pdf'),
 
     # Adapter
     path('events/<int:evento_id>/proveedores/',

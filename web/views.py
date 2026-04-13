@@ -21,6 +21,7 @@ from .patterns.chain_of_responsibility import (
 from .patterns.bridge import (
     EventoReporte,
     ReporteResumen, ReporteDetallado, ReporteFinanciero,
+    ReporteCompleto,
     FormatoPDF, FormatoCSV, FormatoHTML, FormatoEmail,
 )
 from .patterns.adapter import (
@@ -36,9 +37,11 @@ def is_staff(user):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=None) -> DatosValidacion:
+def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=None,
+                                exclude_evento_id=None) -> DatosValidacion:
     """
     Build DatosValidacion from form cleaned data for the Chain of Responsibility.
+    Pass exclude_evento_id when editing an existing event to prevent self-comparison.
     """
     singleton = ConfiguracionGlobal()
     servicios_req = []
@@ -55,7 +58,7 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
     if ubicacion_obj:
         qs = Evento.objects.filter(ubicacion=ubicacion_obj)
         for ev in qs:
-            existentes.append({'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
+            existentes.append({'id': ev.pk, 'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
 
     return DatosValidacion(
         nombre=cfg.get('nombre', ''),
@@ -70,13 +73,17 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
         eventos_existentes=existentes,
         limite_global_asistentes=singleton.get_limite_asistentes(),
         modo_mantenimiento=singleton.get_modo_mantenimiento(),
+        exclude_evento_id=exclude_evento_id,
     )
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
 @login_required
 def dashboard(request):
-    eventos = Evento.objects.select_related('tipo', 'ubicacion', 'organizador')
+    # Only show root events — sub-events are visible inside their parent's detail page
+    eventos = Evento.objects.select_related('tipo', 'ubicacion', 'organizador').filter(
+        evento_padre__isnull=True
+    )
     tipo_id = request.GET.get('tipo')
     fecha   = request.GET.get('fecha')
     if tipo_id:
@@ -119,10 +126,19 @@ def event_update(request, pk):
         form        = EventoForm(request.POST, instance=evento)
         config_form = ConfiguracionEventoForm(request.POST, instance=config_obj)
         if form.is_valid() and config_form.is_valid():
+            # Sub-events are exempt from Chain of Responsibility validation
+            if evento.evento_padre is not None:
+                form.save()
+                config_form.save()
+                messages.success(request, f'Sub-evento "{evento.nombre}" actualizado exitosamente.')
+                return redirect('event_detail', pk=evento.pk)
+
             # ── Chain of Responsibility: validate before saving ───────────
             ubicacion_obj = form.cleaned_data.get('ubicacion')
             merged = {**form.cleaned_data, **config_form.cleaned_data}
-            datos_validacion = _construir_datos_validacion(merged, ubicacion_obj=ubicacion_obj)
+            datos_validacion = _construir_datos_validacion(
+                merged, ubicacion_obj=ubicacion_obj, exclude_evento_id=evento.pk
+            )
             resultado = construir_cadena_completa().manejar(datos_validacion)
             if not resultado.aprobado:
                 messages.error(
@@ -333,6 +349,82 @@ def build_event(request):
                 tiene_streaming   = evento_data.tiene_streaming,
                 tiene_decoracion  = evento_data.tiene_decoracion,
             )
+
+            # ── Inline Sub-events (Composite) ─────────────────────────────
+            import re as _re
+            from django.utils.dateparse import parse_datetime as _parse_dt
+            # Find all submitted sub-event indices via form field names
+            sub_indices = sorted({
+                int(m.group(1))
+                for key in request.POST
+                for m in [_re.match(r'^subevento-(\d+)-nombre$', key)]
+                if m
+            })
+            created_subeventos = 0
+            for i in sub_indices:
+                prefix = f'subevento-{i}'
+                sub_nombre = request.POST.get(f'{prefix}-nombre', '').strip()
+                if not sub_nombre:
+                    continue
+                sub_tipo_nombre   = request.POST.get(f'{prefix}-tipo', '').strip()
+                sub_ubicacion_str = request.POST.get(f'{prefix}-ubicacion', '').strip()
+                sub_fecha_inicio  = request.POST.get(f'{prefix}-fecha_inicio', '')
+                sub_fecha_fin     = request.POST.get(f'{prefix}-fecha_fin', '')
+                sub_max           = request.POST.get(f'{prefix}-max_asistentes', '50')
+                sub_presupuesto   = request.POST.get(f'{prefix}-presupuesto', '0')
+
+                sub_fi = _parse_dt(sub_fecha_inicio) or data['fecha_inicio']
+                sub_ff = _parse_dt(sub_fecha_fin)    or data['fecha_fin']
+
+                sub_tipo_obj = tipo_obj
+                if sub_tipo_nombre:
+                    sub_tipo_obj, _ = TipoEvento.objects.get_or_create(nombre=sub_tipo_nombre)
+
+                # Inherit parent location if not specified
+                sub_ubicacion_obj = ubicacion_obj
+                if sub_ubicacion_str and sub_ubicacion_str != (str(ubicacion_obj) if ubicacion_obj else ''):
+                    sub_ubicacion_obj, _ = Ubicacion.objects.get_or_create(
+                        nombre=sub_ubicacion_str,
+                        defaults={'direccion': '', 'ciudad': ''},
+                    )
+
+                try:
+                    sub_max_int = int(sub_max)
+                except (ValueError, TypeError):
+                    sub_max_int = 50
+                try:
+                    sub_pres = float(sub_presupuesto)
+                except (ValueError, TypeError):
+                    sub_pres = 0.0
+
+                subevento = Evento.objects.create(
+                    nombre         = sub_nombre,
+                    tipo           = sub_tipo_obj,
+                    ubicacion      = sub_ubicacion_obj,
+                    fecha_inicio   = sub_fi,
+                    fecha_fin      = sub_ff,
+                    max_asistentes = sub_max_int,
+                    presupuesto    = sub_pres,
+                    organizador    = request.user,
+                    evento_padre   = evento,
+                    es_compuesto   = False,
+                )
+                # Sub-event services
+                ConfiguracionEvento.objects.create(
+                    evento            = subevento,
+                    tiene_catering    = bool(request.POST.get(f'{prefix}-tiene_catering')),
+                    tiene_escenario   = bool(request.POST.get(f'{prefix}-tiene_escenario')),
+                    tiene_iluminacion = bool(request.POST.get(f'{prefix}-tiene_iluminacion')),
+                    tiene_seguridad   = bool(request.POST.get(f'{prefix}-tiene_seguridad')),
+                    tiene_streaming   = bool(request.POST.get(f'{prefix}-tiene_streaming')),
+                    tiene_decoracion  = bool(request.POST.get(f'{prefix}-tiene_decoracion')),
+                )
+                created_subeventos += 1
+
+            if created_subeventos > 0:
+                evento.es_compuesto = True
+                evento.save(update_fields=['es_compuesto'])
+
             messages.success(request, f'✅ Evento "{evento.nombre}" construido y validado exitosamente.')
             return redirect('event_detail', pk=evento.pk)
     else:
@@ -477,19 +569,28 @@ def generar_reporte(request, pk, tipo, formato):
     Generate a report for an event using the Bridge pattern.
     tipo: 'resumen' | 'detallado' | 'financiero'
     formato: 'pdf' | 'csv' | 'html' | 'email'
+    For 'pdf' formato, generates a real PDF using reportlab via ReporteCompleto.
     """
     evento = get_object_or_404(
         Evento.objects.select_related('tipo', 'ubicacion', 'organizador')
-                      .prefetch_related('servicios'),
+                      .prefetch_related('servicios', 'subeventos__configuracion',
+                                        'subeventos__tipo', 'subeventos__ubicacion'),
         pk=pk,
     )
 
-    # Build DTO
-    evento_dto = EventoReporte.desde_modelo(evento)
+    if formato == 'pdf':
+        # Use ReporteCompleto with real reportlab PDF generation
+        reporte = ReporteCompleto()
+        pdf_bytes = reporte.generar_pdf(evento)
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'attachment; filename="reporte_completo_{evento.pk}.pdf"'
+        )
+        return response
 
-    # Choose report type
+    # Other formats use the original Bridge abstraction
+    evento_dto = EventoReporte.desde_modelo(evento)
     formato_map = {
-        'pdf':   FormatoPDF(),
         'csv':   FormatoCSV(),
         'html':  FormatoHTML(),
         'email': FormatoEmail(),
@@ -505,14 +606,7 @@ def generar_reporte(request, pk, tipo, formato):
     reporte = reporte_cls(fmt_obj)
     contenido = reporte.generar(evento_dto)
 
-    # Return based on format
-    if formato == 'pdf':
-        response = HttpResponse(contenido, content_type='text/plain; charset=utf-8')
-        response['Content-Disposition'] = (
-            f'attachment; filename="reporte_{tipo}_{evento.pk}.txt"'
-        )
-        return response
-    elif formato == 'csv':
+    if formato == 'csv':
         response = HttpResponse(contenido, content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = (
             f'attachment; filename="reporte_{tipo}_{evento.pk}.csv"'
