@@ -1,5 +1,5 @@
 from django import forms
-from .models import Evento, ConfiguracionEvento, GlobalConfig
+from .models import Evento, ConfiguracionEvento, GlobalConfig, ProveedorServicio
 
 
 class EventoForm(forms.ModelForm):
@@ -110,3 +110,22 @@ class CloneEventoForm(forms.Form):
         label="Descripción"
     )
     max_asistentes = forms.IntegerField(min_value=1, label="Máximo de Asistentes")
+
+class SubEventoForm(forms.ModelForm):
+    """Form for adding a sub-event under an existing Composite event."""
+
+    class Meta:
+        model = Evento
+        fields = [
+            'nombre', 'tipo', 'ubicacion',
+            'fecha_inicio', 'fecha_fin',
+            'descripcion', 'max_asistentes', 'presupuesto',
+        ]
+        widgets = {
+            'fecha_inicio': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'fecha_fin':    forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'descripcion':  forms.Textarea(attrs={'rows': 3}),
+        }
+        labels = {
+            'presupuesto': 'Presupuesto (USD)',
+        }

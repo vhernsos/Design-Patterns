@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     TipoEvento, Ubicacion, Servicio,
     Evento, ConfiguracionEvento, PlantillaEvento, GlobalConfig,
+    ProveedorServicio, ServicioContratado,
 )
 
 
@@ -51,3 +52,16 @@ class GlobalConfigAdmin(admin.ModelAdmin):
 @admin.register(PlantillaEvento)
 class PlantillaEventoAdmin(admin.ModelAdmin):
     list_display = ['nombre', 'evento_base', 'creado_en']
+
+@admin.register(ProveedorServicio)
+class ProveedorServicioAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'tipo', 'activo']
+    list_filter = ['tipo', 'activo']
+    search_fields = ['nombre']
+
+
+@admin.register(ServicioContratado)
+class ServicioContratadoAdmin(admin.ModelAdmin):
+    list_display = ['proveedor', 'evento', 'estado', 'fecha_solicitud', 'costo']
+    list_filter = ['estado', 'proveedor__tipo']
+    search_fields = ['evento__nombre', 'proveedor__nombre']
