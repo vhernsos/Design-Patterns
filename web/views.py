@@ -1,12 +1,13 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
+from django.http import HttpResponse
 import json
 
-from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion
+from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado
 from .forms import (
     EventoForm, ConfiguracionEventoForm, GlobalConfigForm,
-    BuildEventoForm, CloneEventoForm,
+    BuildEventoForm, CloneEventoForm, SubEventoForm,
 )
 from .patterns.singleton import ConfiguracionGlobal
 from .patterns.builder import (
@@ -14,10 +15,62 @@ from .patterns.builder import (
     EventoConcertBuilder, EventoTheatreBuilder, DirectorEvento,
 )
 from .patterns.prototype import EventoPrototype
+from .patterns.chain_of_responsibility import (
+    DatosValidacion, construir_cadena_completa,
+)
+from .patterns.bridge import (
+    EventoReporte,
+    ReporteResumen, ReporteDetallado, ReporteFinanciero,
+    FormatoPDF, FormatoCSV, FormatoHTML, FormatoEmail,
+)
+from .patterns.adapter import (
+    AdaptadorCateringProveedorA, AdaptadorCateringProveedorB,
+    AdaptadorStripe, AdaptadorPayPal, AdaptadorMercadoPago,
+    AdaptadorYouTube, AdaptadorVimeo, AdaptadorFacebookLive,
+)
 
 
 def is_staff(user):
     return user.is_staff
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=None) -> DatosValidacion:
+    """
+    Build DatosValidacion from form cleaned data for the Chain of Responsibility.
+    """
+    singleton = ConfiguracionGlobal()
+    servicios_req = []
+    cfg = evento_form_data
+    for campo in ('tiene_catering', 'tiene_escenario', 'tiene_iluminacion',
+                  'tiene_seguridad', 'tiene_streaming', 'tiene_decoracion'):
+        if cfg.get(campo):
+            servicios_req.append(campo.replace('tiene_', ''))
+
+    capacidad_ub = ubicacion_obj.capacidad if ubicacion_obj else 0
+
+    # Collect existing events at same location to check schedule conflicts
+    existentes = []
+    if ubicacion_obj:
+        qs = Evento.objects.filter(ubicacion=ubicacion_obj)
+        for ev in qs:
+            existentes.append({'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
+
+    return DatosValidacion(
+        nombre=cfg.get('nombre', ''),
+        max_asistentes=cfg.get('max_asistentes', 0),
+        capacidad_ubicacion=capacidad_ub,
+        servicios_requeridos=servicios_req,
+        servicios_disponibles=['catering', 'escenario', 'iluminacion', 'seguridad', 'streaming', 'decoracion'],
+        presupuesto_disponible=0,   # not constrained by default
+        costo_estimado=0,
+        fecha_inicio=cfg.get('fecha_inicio'),
+        fecha_fin=cfg.get('fecha_fin'),
+        eventos_existentes=existentes,
+        limite_global_asistentes=singleton.get_limite_asistentes(),
+        modo_mantenimiento=singleton.get_modo_mantenimiento(),
+    )
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
@@ -45,8 +98,8 @@ def dashboard(request):
 def event_detail(request, pk):
     evento = get_object_or_404(
         Evento.objects
-              .select_related('tipo', 'ubicacion', 'organizador')
-              .prefetch_related('servicios', 'clones'),
+              .select_related('tipo', 'ubicacion', 'organizador', 'evento_padre')
+              .prefetch_related('servicios', 'clones', 'subeventos', 'servicios_contratados__proveedor'),
         pk=pk,
     )
     config = ConfiguracionGlobal()
@@ -66,10 +119,21 @@ def event_update(request, pk):
         form        = EventoForm(request.POST, instance=evento)
         config_form = ConfiguracionEventoForm(request.POST, instance=config_obj)
         if form.is_valid() and config_form.is_valid():
-            form.save()
-            config_form.save()
-            messages.success(request, f'Evento "{evento.nombre}" actualizado exitosamente.')
-            return redirect('event_detail', pk=evento.pk)
+            # ── Chain of Responsibility: validate before saving ───────────
+            ubicacion_obj = form.cleaned_data.get('ubicacion')
+            merged = {**form.cleaned_data, **config_form.cleaned_data}
+            datos_validacion = _construir_datos_validacion(merged, ubicacion_obj=ubicacion_obj)
+            resultado = construir_cadena_completa().manejar(datos_validacion)
+            if not resultado.aprobado:
+                messages.error(
+                    request,
+                    f'❌ Validación fallida [{resultado.validador}]: {resultado.mensaje}',
+                )
+            else:
+                form.save()
+                config_form.save()
+                messages.success(request, f'Evento "{evento.nombre}" actualizado exitosamente.')
+                return redirect('event_detail', pk=evento.pk)
     else:
         form        = EventoForm(instance=evento)
         config_form = ConfiguracionEventoForm(instance=config_obj)
@@ -213,6 +277,43 @@ def build_event(request):
                     defaults={'direccion': '', 'ciudad': ''},
                 )
 
+            # ── Chain of Responsibility: validate before saving ───────────────
+            datos_validacion = _construir_datos_validacion(
+                {
+                    'nombre': evento_data.nombre,
+                    'max_asistentes': evento_data.max_asistentes,
+                    'fecha_inicio': data['fecha_inicio'],
+                    'fecha_fin': data['fecha_fin'],
+                    'tiene_catering':    evento_data.tiene_catering,
+                    'tiene_escenario':   evento_data.tiene_escenario,
+                    'tiene_iluminacion': evento_data.tiene_iluminacion,
+                    'tiene_seguridad':   evento_data.tiene_seguridad,
+                    'tiene_streaming':   evento_data.tiene_streaming,
+                    'tiene_decoracion':  evento_data.tiene_decoracion,
+                },
+                ubicacion_obj=ubicacion_obj,
+            )
+            resultado = construir_cadena_completa().manejar(datos_validacion)
+            if not resultado.aprobado:
+                messages.error(
+                    request,
+                    f'❌ Validación fallida [{resultado.validador}]: {resultado.mensaje}',
+                )
+                return render(request, 'web/build_event.html', {
+                    'form':          form,
+                    'all_events':    all_events,
+                    'events_json':   json.dumps(events_json),
+                    'services_list': [
+                        ('Catering',    '🍽️', 'catering'),
+                        ('Escenario',   '🎭', 'escenario'),
+                        ('Iluminación', '💡', 'iluminacion'),
+                        ('Seguridad',   '🔒', 'seguridad'),
+                        ('Transmisión', '📡', 'streaming'),
+                        ('Decoración',  '🎨', 'decoracion'),
+                    ],
+                    'resultado_validacion': resultado,
+                })
+
             evento = Evento.objects.create(
                 nombre         = evento_data.nombre,
                 tipo           = tipo_obj,
@@ -232,7 +333,7 @@ def build_event(request):
                 tiene_streaming   = evento_data.tiene_streaming,
                 tiene_decoracion  = evento_data.tiene_decoracion,
             )
-            messages.success(request, f'Evento "{evento.nombre}" construido exitosamente.')
+            messages.success(request, f'✅ Evento "{evento.nombre}" construido y validado exitosamente.')
             return redirect('event_detail', pk=evento.pk)
     else:
         form = BuildEventoForm()
@@ -309,4 +410,267 @@ def global_config(request):
     return render(request, 'web/global_config.html', {
         'form':      form,
         'singleton': singleton,
+    })
+
+# ── COMPOSITE: Sub-event management ──────────────────────────────────────────
+
+@login_required
+def agregar_subevento(request, pk):
+    """GET: show form to add a sub-event. POST: create and attach sub-event."""
+    evento_padre = get_object_or_404(Evento, pk=pk)
+
+    if request.method == 'POST':
+        form = SubEventoForm(request.POST)
+        if form.is_valid():
+            # Validate no circular reference
+            subevento = form.save(commit=False)
+            subevento.organizador = request.user
+            subevento.evento_padre = evento_padre
+            subevento.es_compuesto = False
+            subevento.save()
+            form.save_m2m()
+
+            # Mark parent as composite
+            if not evento_padre.es_compuesto:
+                evento_padre.es_compuesto = True
+                evento_padre.save(update_fields=['es_compuesto'])
+
+            messages.success(
+                request,
+                f'✅ Sub-evento "{subevento.nombre}" añadido a "{evento_padre.nombre}".'
+            )
+            return redirect('event_detail', pk=pk)
+    else:
+        form = SubEventoForm(initial={
+            'fecha_inicio': evento_padre.fecha_inicio,
+            'fecha_fin': evento_padre.fecha_fin,
+        })
+
+    return render(request, 'web/subeventos.html', {
+        'form': form,
+        'evento_padre': evento_padre,
+    })
+
+
+@login_required
+def eliminar_subevento(request, evento_id, subevento_id):
+    """POST: remove a sub-event from its parent."""
+    evento_padre = get_object_or_404(Evento, pk=evento_id)
+    subevento = get_object_or_404(Evento, pk=subevento_id, evento_padre=evento_padre)
+
+    if request.method == 'POST':
+        nombre = subevento.nombre
+        subevento.delete()
+        # Update parent composite flag if no more sub-events
+        if not evento_padre.subeventos.exists():
+            evento_padre.es_compuesto = False
+            evento_padre.save(update_fields=['es_compuesto'])
+        messages.success(request, f'Sub-evento "{nombre}" eliminado.')
+    return redirect('event_detail', pk=evento_id)
+
+
+# ── BRIDGE: Report generation ─────────────────────────────────────────────────
+
+@login_required
+def generar_reporte(request, pk, tipo, formato):
+    """
+    Generate a report for an event using the Bridge pattern.
+    tipo: 'resumen' | 'detallado' | 'financiero'
+    formato: 'pdf' | 'csv' | 'html' | 'email'
+    """
+    evento = get_object_or_404(
+        Evento.objects.select_related('tipo', 'ubicacion', 'organizador')
+                      .prefetch_related('servicios'),
+        pk=pk,
+    )
+
+    # Build DTO
+    evento_dto = EventoReporte.desde_modelo(evento)
+
+    # Choose report type
+    formato_map = {
+        'pdf':   FormatoPDF(),
+        'csv':   FormatoCSV(),
+        'html':  FormatoHTML(),
+        'email': FormatoEmail(),
+    }
+    reporte_map = {
+        'resumen':    ReporteResumen,
+        'detallado':  ReporteDetallado,
+        'financiero': ReporteFinanciero,
+    }
+
+    fmt_obj = formato_map.get(formato, FormatoHTML())
+    reporte_cls = reporte_map.get(tipo, ReporteResumen)
+    reporte = reporte_cls(fmt_obj)
+    contenido = reporte.generar(evento_dto)
+
+    # Return based on format
+    if formato == 'pdf':
+        response = HttpResponse(contenido, content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] = (
+            f'attachment; filename="reporte_{tipo}_{evento.pk}.txt"'
+        )
+        return response
+    elif formato == 'csv':
+        response = HttpResponse(contenido, content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = (
+            f'attachment; filename="reporte_{tipo}_{evento.pk}.csv"'
+        )
+        return response
+    elif formato == 'html':
+        return render(request, 'web/reportes.html', {
+            'evento': evento,
+            'contenido_html': contenido,
+            'tipo': tipo,
+            'formato': formato,
+        })
+    else:  # email
+        return render(request, 'web/reportes.html', {
+            'evento': evento,
+            'contenido_email': contenido,
+            'tipo': tipo,
+            'formato': formato,
+        })
+
+
+# ── ADAPTER: External service providers ──────────────────────────────────────
+
+@login_required
+def listar_proveedores(request, evento_id):
+    """Show available service providers and contracted services for an event."""
+    evento = get_object_or_404(Evento, pk=evento_id)
+    proveedores = ProveedorServicio.objects.filter(activo=True)
+    contratos = ServicioContratado.objects.filter(evento=evento).select_related('proveedor')
+
+    return render(request, 'web/proveedores.html', {
+        'evento': evento,
+        'proveedores': proveedores,
+        'contratos': contratos,
+    })
+
+
+@login_required
+def contratar_servicio(request, evento_id, proveedor_id):
+    """POST: contract a service from a provider using the Adapter pattern."""
+    evento = get_object_or_404(Evento, pk=evento_id)
+    proveedor = get_object_or_404(ProveedorServicio, pk=proveedor_id, activo=True)
+
+    if request.method == 'POST':
+        # Build adapter using simulated/demo credentials - no real API calls
+        key = proveedor.api_key or 'simulated_key'
+        adapter_factories = {
+            'catering_a':  lambda: AdaptadorCateringProveedorA(),
+            'catering_b':  lambda: AdaptadorCateringProveedorB(api_key=key),
+            'stripe':      lambda: AdaptadorStripe(api_key=key),
+            'paypal':      lambda: AdaptadorPayPal(),
+            'mercadopago': lambda: AdaptadorMercadoPago(),
+            'youtube':     lambda: AdaptadorYouTube(api_key=key),
+            'vimeo':       lambda: AdaptadorVimeo(),
+            'facebook':    lambda: AdaptadorFacebookLive(),
+        }
+        respuesta = {}
+        factory = adapter_factories.get(proveedor.tipo)
+        if factory:
+            try:
+                adapter = factory()
+                adapter.conectar()
+                respuesta = adapter.procesar_solicitud({
+                    'evento_id': str(evento.pk),
+                    'evento_nombre': evento.nombre,
+                    'asistentes': evento.max_asistentes,
+                })
+            except Exception as exc:
+                respuesta = {'exito': False, 'mensaje': str(exc)}
+
+        estado = 'confirmado' if respuesta.get('exito', True) else 'pendiente'
+        contrato, created = ServicioContratado.objects.get_or_create(
+            evento=evento,
+            proveedor=proveedor,
+            defaults={
+                'estado': estado,
+                'respuesta_adapter': respuesta,
+                'notas': respuesta.get('mensaje', ''),
+            },
+        )
+        if not created:
+            contrato.estado = estado
+            contrato.respuesta_adapter = respuesta
+            contrato.save(update_fields=['estado', 'respuesta_adapter'])
+
+        messages.success(
+            request,
+            f'✅ Servicio "{proveedor.nombre}" contratado para "{evento.nombre}" [{estado}].'
+        )
+
+    return redirect('listar_proveedores', evento_id=evento_id)
+
+
+# ── CHAIN OF RESPONSIBILITY: Event validation view ────────────────────────────
+
+@login_required
+def validar_evento(request, pk):
+    """Show a detailed validation report for an event using Chain of Responsibility."""
+    evento = get_object_or_404(
+        Evento.objects.select_related('ubicacion').prefetch_related('configuracion'),
+        pk=pk,
+    )
+    singleton = ConfiguracionGlobal()
+    cfg = getattr(evento, 'configuracion', None)
+
+    servicios_req = []
+    if cfg:
+        for campo in ('tiene_catering', 'tiene_escenario', 'tiene_iluminacion',
+                      'tiene_seguridad', 'tiene_streaming', 'tiene_decoracion'):
+            if getattr(cfg, campo, False):
+                servicios_req.append(campo.replace('tiene_', ''))
+
+    existentes = []
+    if evento.ubicacion:
+        qs = Evento.objects.filter(ubicacion=evento.ubicacion).exclude(pk=pk)
+        for ev in qs:
+            existentes.append({'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
+
+    datos = DatosValidacion(
+        nombre=evento.nombre,
+        max_asistentes=evento.max_asistentes,
+        capacidad_ubicacion=evento.ubicacion.capacidad if evento.ubicacion else 0,
+        servicios_requeridos=servicios_req,
+        servicios_disponibles=['catering', 'escenario', 'iluminacion', 'seguridad', 'streaming', 'decoracion'],
+        presupuesto_disponible=0,
+        costo_estimado=0,
+        fecha_inicio=evento.fecha_inicio,
+        fecha_fin=evento.fecha_fin,
+        eventos_existentes=existentes,
+        limite_global_asistentes=singleton.get_limite_asistentes(),
+        modo_mantenimiento=singleton.get_modo_mantenimiento(),
+    )
+
+    # Run each validator individually for detailed UI feedback
+    from .patterns.chain_of_responsibility import (
+        ValidadorCapacidad, ValidadorServicios,
+        ValidadorPresupuesto, ValidadorHorarios, ValidadorRestriccionesGlobales,
+    )
+    validadores = [
+        ValidadorCapacidad(),
+        ValidadorServicios(),
+        ValidadorPresupuesto(),
+        ValidadorHorarios(),
+        ValidadorRestriccionesGlobales(),
+    ]
+    resultados_detalle = []
+    for v in validadores:
+        res = v.manejar(datos)
+        resultados_detalle.append({
+            'nombre': v.nombre,
+            'aprobado': res.aprobado or res.validador != v.nombre,
+            'mensaje': res.mensaje if res.validador == v.nombre else '',
+        })
+
+    resultado_global = construir_cadena_completa().manejar(datos)
+
+    return render(request, 'web/validacion_evento.html', {
+        'evento': evento,
+        'resultado_global': resultado_global,
+        'resultados_detalle': resultados_detalle,
     })

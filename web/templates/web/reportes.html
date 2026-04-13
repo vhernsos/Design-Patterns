@@ -1,0 +1,81 @@
+{% extends 'web/base.html' %}
+{% block title %}Reporte – {{ evento.nombre }}{% endblock %}
+{% block content %}
+
+<div style="max-width:800px;margin:0 auto;">
+
+  <!-- Breadcrumb -->
+  <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--gray-400);">
+    <a href="{% url 'dashboard' %}" style="color:var(--gray-400);">Panel</a>
+    <span>›</span>
+    <a href="{% url 'event_detail' evento.pk %}" style="color:var(--gray-400);">{{ evento.nombre }}</a>
+    <span>›</span>
+    <span style="color:var(--gray-200);">Reporte {{ tipo|capfirst }} ({{ formato|upper }})</span>
+  </div>
+
+  <!-- Header -->
+  <div class="card card-elevated" style="margin-bottom:1.5rem;padding:1.5rem;">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
+      <span style="font-size:1.8rem;">📊</span>
+      <div>
+        <h2 style="margin:0;font-size:1.3rem;">Reporte Generado</h2>
+        <p style="margin:0;color:var(--gray-400);font-size:.85rem;">
+          Patrón <strong style="color:var(--purple-light);">Bridge</strong> —
+          {{ tipo|capfirst }} × {{ formato|upper }} desacoplados
+        </p>
+      </div>
+    </div>
+  </div>
+
+    <!-- Report selector -->
+  <div class="card card-elevated" style="margin-bottom:1.5rem;">
+    <h3 style="margin-bottom:1rem;font-size:.95rem;color:var(--gray-300);">
+      Generar otro reporte
+    </h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem;">
+      <a href="{% url 'generar_reporte' evento.pk 'resumen' 'html' %}"
+         class="btn btn-secondary btn-sm">📄 Resumen HTML</a>
+      <a href="{% url 'generar_reporte' evento.pk 'detallado' 'html' %}"
+         class="btn btn-secondary btn-sm">📋 Detallado HTML</a>
+      <a href="{% url 'generar_reporte' evento.pk 'financiero' 'html' %}"
+         class="btn btn-secondary btn-sm">💰 Financiero HTML</a>
+      <a href="{% url 'generar_reporte' evento.pk 'resumen' 'pdf' %}"
+         class="btn btn-primary btn-sm">⬇ Resumen PDF</a>
+      <a href="{% url 'generar_reporte' evento.pk 'detallado' 'pdf' %}"
+         class="btn btn-primary btn-sm">⬇ Detallado PDF</a>
+      <a href="{% url 'generar_reporte' evento.pk 'financiero' 'csv' %}"
+         class="btn btn-success btn-sm">⬇ Financiero CSV</a>
+      <a href="{% url 'generar_reporte' evento.pk 'resumen' 'email' %}"
+         class="btn btn-warning btn-sm">✉ Resumen Email</a>
+    </div>
+  </div>
+
+  <!-- Report content -->
+  <div class="card">
+    {% if contenido_html %}
+    <div style="font-size:.9rem;line-height:1.7;color:var(--gray-200);">
+      {{ contenido_html|safe }}
+    </div>
+    {% elif contenido_email %}
+    <pre style="white-space:pre-wrap;font-family:monospace;font-size:.85rem;
+                color:var(--gray-200);background:rgba(0,0,0,0.2);
+                border-radius:8px;padding:1rem;overflow-x:auto;">{{ contenido_email }}</pre>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:1rem;">
+    <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary">← Volver al Evento</a>
+  </div>
+</div>
+
+<style>
+  pre { margin: 0; }
+  table { width:100%; border-collapse:collapse; margin:.5rem 0; }
+  th { background:rgba(91,94,244,0.15); padding:.5rem .75rem; text-align:left; color:var(--primary); }
+  td { padding:.4rem .75rem; border-bottom:1px solid rgba(255,255,255,0.05); color:var(--gray-300); }
+  h1 { font-size:1.3rem; margin:.75rem 0 .5rem; color:var(--gray-100); }
+  h2 { font-size:1rem; margin:.75rem 0 .4rem; color:var(--purple-light); }
+  ul { padding-left:1.5rem; }
+  li { margin:.2rem 0; }
+</style>
+{% endblock %}

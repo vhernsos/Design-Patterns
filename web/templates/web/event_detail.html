@@ -12,6 +12,12 @@
       {% if evento.es_clon %}
       <span class="badge badge-purple">🔁 Clon</span>
       {% endif %}
+      {% if evento.es_compuesto %}
+      <span class="badge badge-green">🌿 Compuesto</span>
+      {% endif %}
+      {% if evento.evento_padre %}
+      <span class="badge badge-orange">🔗 Sub-evento</span>
+      {% endif %}
     </div>
     <h1 class="detail-hero-title">{{ evento.nombre }}</h1>
     <div class="detail-hero-meta">
@@ -22,6 +28,9 @@
       {% endif %}
       <span class="detail-meta-item">👥 {{ evento.max_asistentes }} máximo de asistentes</span>
       <span class="detail-meta-item">👤 {{ evento.organizador.username }}</span>
+      {% if evento.presupuesto %}
+      <span class="detail-meta-item">💰 ${{ evento.presupuesto }}</span>
+      {% endif %}
     </div>
     {% if evento.descripcion %}
     <p style="margin-top:1rem;color:rgba(255,255,255,0.65);font-size:.9rem;max-width:600px;">
@@ -139,6 +148,149 @@
     </p>
   </div>
   {% endif %}
+</div>
+
+<!-- ── COMPOSITE: Sub-events section ─────────────────────────────────────── -->
+<div class="card card-elevated" style="margin-top:1.5rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
+    <h3 style="margin:0;font-size:1rem;color:var(--primary);">
+      🌿 Composite — Sub-eventos
+    </h3>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+      {% if evento.es_compuesto %}
+      <span style="font-size:.8rem;color:var(--gray-400);">
+        💰 Total: ${{ evento.calcular_presupuesto_total|floatformat:2 }} &nbsp;
+        ⏱ {{ evento.calcular_duracion_total }}h &nbsp;
+        👥 {{ evento.obtener_capacidad_maxima }}
+      </span>
+      {% endif %}
+      <a href="{% url 'agregar_subevento' evento.pk %}" class="btn btn-primary btn-sm">
+        ➕ Añadir Sub-evento
+      </a>
+    </div>
+  </div>
+
+  {% if evento.evento_padre %}
+  <div style="margin-bottom:.75rem;padding:.5rem .8rem;
+              background:rgba(245,158,11,0.07);border-radius:8px;font-size:.85rem;
+              color:var(--gray-300);">
+    📌 Evento padre:
+    <a href="{% url 'event_detail' evento.evento_padre.pk %}"
+       style="color:var(--orange);font-weight:600;">
+      {{ evento.evento_padre.nombre }}
+    </a>
+  </div>
+  {% endif %}
+
+  {% if evento.subeventos.all %}
+  <div style="display:flex;flex-direction:column;gap:.6rem;">
+    {% for sub in evento.subeventos.all %}
+    <div style="display:flex;align-items:center;gap:.75rem;
+                padding:.7rem 1rem;background:rgba(255,255,255,0.04);
+                border-radius:8px;border:1px solid rgba(91,94,244,0.15);">
+      <span style="font-size:1rem;">🔹</span>
+      <div style="flex:1;">
+        <a href="{% url 'event_detail' sub.pk %}"
+           style="font-weight:600;color:var(--gray-100);text-decoration:none;">
+          {{ sub.nombre }}
+        </a>
+        <span style="font-size:.8rem;color:var(--gray-500);margin-left:.5rem;">
+          {{ sub.fecha_inicio|date:"M d, Y" }} · 👥 {{ sub.max_asistentes }}
+          {% if sub.presupuesto %} · 💰 ${{ sub.presupuesto }}{% endif %}
+        </span>
+      </div>
+      <form method="post"
+            action="{% url 'eliminar_subevento' evento.pk sub.pk %}"
+            style="margin:0;"
+            onsubmit="return confirm('¿Eliminar sub-evento «{{ sub.nombre }}»?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger btn-sm">✕</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--gray-500);font-size:.9rem;margin:0;">
+    Sin sub-eventos. Haz clic en <strong>➕ Añadir Sub-evento</strong> para crear una estructura jerárquica.
+  </p>
+  {% endif %}
+</div>
+
+<!-- ── BRIDGE: Reports section ───────────────────────────────────────────── -->
+<div class="card card-elevated" style="margin-top:1.5rem;">
+  <h3 style="margin-bottom:1rem;font-size:1rem;color:var(--purple-light);">
+    📊 Bridge — Reportes del Evento
+  </h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;">
+    <a href="{% url 'generar_reporte' evento.pk 'resumen' 'html' %}"
+       class="btn btn-secondary btn-sm">🌐 Resumen HTML</a>
+    <a href="{% url 'generar_reporte' evento.pk 'detallado' 'html' %}"
+       class="btn btn-secondary btn-sm">🌐 Detallado HTML</a>
+    <a href="{% url 'generar_reporte' evento.pk 'financiero' 'html' %}"
+       class="btn btn-secondary btn-sm">🌐 Financiero HTML</a>
+    <a href="{% url 'generar_reporte' evento.pk 'resumen' 'pdf' %}"
+       class="btn btn-primary btn-sm">⬇ Descargar Resumen PDF</a>
+    <a href="{% url 'generar_reporte' evento.pk 'detallado' 'pdf' %}"
+       class="btn btn-primary btn-sm">⬇ Descargar Detallado PDF</a>
+    <a href="{% url 'generar_reporte' evento.pk 'financiero' 'csv' %}"
+       class="btn btn-success btn-sm">⬇ Exportar CSV</a>
+    <a href="{% url 'generar_reporte' evento.pk 'resumen' 'email' %}"
+       class="btn btn-warning btn-sm">✉ Ver formato Email</a>
+  </div>
+</div>
+
+<!-- ── ADAPTER: External providers section ───────────────────────────────── -->
+<div class="card card-elevated" style="margin-top:1.5rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+    <h3 style="margin:0;font-size:1rem;color:var(--orange);">
+      🔌 Adapter — Proveedores Externos
+    </h3>
+    <a href="{% url 'listar_proveedores' evento.pk %}" class="btn btn-warning btn-sm">
+      🏪 Contratar Servicios
+    </a>
+  </div>
+  {% with contratos=evento.servicios_contratados.all %}
+  {% if contratos %}
+  <div style="display:flex;flex-direction:column;gap:.5rem;">
+    {% for c in contratos %}
+    <div style="display:flex;align-items:center;gap:.75rem;
+                padding:.5rem .8rem;background:rgba(255,255,255,0.04);
+                border-radius:8px;">
+      <span>🔌</span>
+      <span style="flex:1;font-size:.9rem;color:var(--gray-200);">{{ c.proveedor.nombre }}</span>
+      <span class="badge
+        {% if c.estado == 'confirmado' or c.estado == 'completado' %}badge-green
+        {% elif c.estado == 'cancelado' %}badge-red
+        {% else %}badge-orange{% endif %}">
+        {{ c.get_estado_display }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--gray-500);font-size:.9rem;margin:0;">
+    Sin servicios contratados. Haz clic en <strong>Contratar Servicios</strong>.
+  </p>
+  {% endif %}
+  {% endwith %}
+</div>
+
+<!-- ── CHAIN OF RESPONSIBILITY: Validation section ───────────────────────── -->
+<div class="card card-elevated" style="margin-top:1.5rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              flex-wrap:wrap;gap:.5rem;">
+    <h3 style="margin:0;font-size:1rem;color:var(--green);">
+      🔗 Chain of Responsibility — Validación
+    </h3>
+    <a href="{% url 'validar_evento' evento.pk %}" class="btn btn-success btn-sm">
+      ✅ Ver Validación Completa
+    </a>
+  </div>
+  <p style="margin:.6rem 0 0;font-size:.85rem;color:var(--gray-400);">
+    Ejecuta la cadena de validadores: Capacidad → Servicios → Presupuesto → Horarios → Restricciones globales.
+  </p>
 </div>
 
 <!-- Singleton ribbon -->
