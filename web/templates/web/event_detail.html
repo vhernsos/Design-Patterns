@@ -219,25 +219,21 @@
 
 <!-- ── BRIDGE: Reports section ───────────────────────────────────────────── -->
 <div class="card card-elevated" style="margin-top:1.5rem;">
-  <h3 style="margin-bottom:1rem;font-size:1rem;color:var(--purple-light);">
-    📊 Bridge — Reportes del Evento
-  </h3>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;">
-    <a href="{% url 'generar_reporte' evento.pk 'resumen' 'html' %}"
-       class="btn btn-secondary btn-sm">🌐 Resumen HTML</a>
-    <a href="{% url 'generar_reporte' evento.pk 'detallado' 'html' %}"
-       class="btn btn-secondary btn-sm">🌐 Detallado HTML</a>
-    <a href="{% url 'generar_reporte' evento.pk 'financiero' 'html' %}"
-       class="btn btn-secondary btn-sm">🌐 Financiero HTML</a>
-    <a href="{% url 'generar_reporte' evento.pk 'resumen' 'pdf' %}"
-       class="btn btn-primary btn-sm">⬇ Descargar Resumen PDF</a>
-    <a href="{% url 'generar_reporte' evento.pk 'detallado' 'pdf' %}"
-       class="btn btn-primary btn-sm">⬇ Descargar Detallado PDF</a>
-    <a href="{% url 'generar_reporte' evento.pk 'financiero' 'csv' %}"
-       class="btn btn-success btn-sm">⬇ Exportar CSV</a>
-    <a href="{% url 'generar_reporte' evento.pk 'resumen' 'email' %}"
-       class="btn btn-warning btn-sm">✉ Ver formato Email</a>
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+    <h3 style="margin:0;font-size:1rem;color:var(--purple-light);">
+      📊 Bridge — Reportes del Evento
+    </h3>
+    <a href="{% url 'generar_pdf' evento.pk %}" class="btn btn-primary btn-sm">
+      ⬇ Descargar PDF Completo
+    </a>
   </div>
+  <p style="margin:0;font-size:.85rem;color:var(--gray-400);">
+    Genera un reporte PDF detallado con estructura jerárquica, servicios, presupuestos y resumen consolidado.
+    También disponible en otros formatos:
+    <a href="{% url 'generar_reporte' evento.pk 'detallado' 'html' %}" style="color:var(--purple-light);margin-left:.25rem;">🌐 HTML</a>
+    <a href="{% url 'generar_reporte' evento.pk 'financiero' 'csv' %}" style="color:var(--green);margin-left:.5rem;">📄 CSV</a>
+  </p>
 </div>
 
 <!-- ── ADAPTER: External providers section ───────────────────────────────── -->

@@ -53,6 +53,8 @@ class DatosValidacion:
     eventos_existentes: List[dict] = field(default_factory=list)  # [{inicio, fin}]
     limite_global_asistentes: int = 5000
     modo_mantenimiento: bool = False
+    # ID of the event being edited — excluded from schedule-conflict checks
+    exclude_evento_id: Optional[int] = None
 
 
 @dataclass
@@ -192,6 +194,8 @@ class ValidadorHorarios(Handler):
     Detecta si las fechas del nuevo evento se solapan con eventos existentes.
     Cada elemento de `datos.eventos_existentes` debe tener las claves
     'inicio' y 'fin' (objetos datetime comparables).
+    Los eventos cuyo 'id' coincida con datos.exclude_evento_id se ignoran
+    (evita que un evento se compare consigo mismo al editarlo).
     """
 
     def manejar(self, datos: DatosValidacion) -> ResultadoValidacion:
@@ -199,6 +203,11 @@ class ValidadorHorarios(Handler):
             return self._continuar(datos)
 
         for evento in datos.eventos_existentes:
+            # Skip the event being edited to avoid self-comparison
+            if datos.exclude_evento_id is not None:
+                if evento.get('id') == datos.exclude_evento_id:
+                    continue
+
             inicio_existente = evento.get('inicio')
             fin_existente    = evento.get('fin')
             if inicio_existente is None or fin_existente is None:

@@ -364,6 +364,270 @@ class ReporteFinanciero(Reporte):
 
 
 # ---------------------------------------------------------------------------
+# ReporteCompleto — PDF profesional con árbol jerárquico (reportlab)
+# ---------------------------------------------------------------------------
+
+class ReporteCompleto:
+    """
+    Genera un PDF profesional y detallado de un evento usando reportlab.
+    Incluye información del evento, sub-eventos en árbol, servicios y resumen.
+    No utiliza la abstracción Reporte/FormatoSalida: opera directamente sobre
+    el modelo Django para acceder a la jerarquía de sub-eventos.
+    """
+
+    def generar_pdf(self, evento) -> bytes:
+        """
+        Recibe un modelo Evento de Django y devuelve los bytes del PDF generado.
+        """
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import cm
+            from reportlab.lib import colors
+            from reportlab.platypus import (
+                SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+                HRFlowable,
+            )
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT
+            import io
+            from django.utils import timezone as tz
+        except ImportError as exc:
+            raise ImportError(
+                "reportlab is required for PDF generation. "
+                "Install it with: pip install reportlab"
+            ) from exc
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=2 * cm,
+            leftMargin=2 * cm,
+            topMargin=2 * cm,
+            bottomMargin=2 * cm,
+        )
+
+        styles = getSampleStyleSheet()
+
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Title'],
+            fontSize=18,
+            spaceAfter=6,
+            textColor=colors.HexColor('#1a1a2e'),
+            alignment=TA_CENTER,
+        )
+        heading1 = ParagraphStyle(
+            'Heading1Custom',
+            parent=styles['Heading1'],
+            fontSize=13,
+            textColor=colors.HexColor('#5b5ef4'),
+            spaceBefore=12,
+            spaceAfter=4,
+        )
+        heading2 = ParagraphStyle(
+            'Heading2Custom',
+            parent=styles['Heading2'],
+            fontSize=11,
+            textColor=colors.HexColor('#2d2d6b'),
+            spaceBefore=8,
+            spaceAfter=2,
+        )
+        normal = ParagraphStyle(
+            'NormalCustom',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=14,
+        )
+        small_gray = ParagraphStyle(
+            'SmallGray',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#666666'),
+        )
+        tree_item = ParagraphStyle(
+            'TreeItem',
+            parent=styles['Normal'],
+            fontSize=9,
+            leftIndent=16,
+            leading=13,
+        )
+
+        story = []
+
+        # ── Header ──────────────────────────────────────────────────────────
+        story.append(HRFlowable(width='100%', thickness=2, color=colors.HexColor('#5b5ef4')))
+        story.append(Spacer(1, 6))
+        story.append(Paragraph('REPORTE COMPLETO DEL EVENTO', title_style))
+        story.append(Spacer(1, 4))
+        story.append(HRFlowable(width='100%', thickness=2, color=colors.HexColor('#5b5ef4')))
+        story.append(Spacer(1, 12))
+
+        # ── Event info ───────────────────────────────────────────────────────
+        story.append(Paragraph(f'📅 {evento.nombre.upper()}', heading1))
+        info_data = [
+            ['Tipo:', str(evento.tipo) if evento.tipo else '—'],
+            ['Fecha inicio:', evento.fecha_inicio.strftime('%d %b %Y · %H:%M') if evento.fecha_inicio else '—'],
+            ['Fecha fin:', evento.fecha_fin.strftime('%d %b %Y · %H:%M') if evento.fecha_fin else '—'],
+            ['Ubicación:', str(evento.ubicacion) if evento.ubicacion else '—'],
+            ['Organizador:', evento.organizador.get_full_name() or evento.organizador.username],
+            ['Máx. asistentes:', f'{evento.max_asistentes:,}'],
+        ]
+        if evento.descripcion:
+            info_data.append(['Descripción:', evento.descripcion[:200]])
+
+        t = Table(info_data, colWidths=[4 * cm, 13 * cm])
+        t.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#333366')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 10))
+
+        # ── Financial section ────────────────────────────────────────────────
+        subeventos = list(evento.subeventos.all())
+        if subeventos:
+            story.append(Paragraph('💰 INFORMACIÓN FINANCIERA', heading1))
+            fin_data = []
+            total_presupuesto = 0.0
+            for sub in subeventos:
+                pres = float(sub.presupuesto or 0)
+                total_presupuesto += pres
+                fin_data.append([f'Presupuesto {sub.nombre}:', f'${pres:,.2f}'])
+            if evento.presupuesto:
+                total_presupuesto += float(evento.presupuesto)
+            fin_data.append(['PRESUPUESTO TOTAL:', f'${total_presupuesto:,.2f}'])
+
+            tf = Table(fin_data, colWidths=[10 * cm, 7 * cm])
+            tf.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#1a6b1a')),
+                ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#5b5ef4')),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ]))
+            story.append(tf)
+            story.append(Spacer(1, 10))
+
+        # ── Sub-events tree ───────────────────────────────────────────────────
+        if subeventos:
+            story.append(Paragraph(f'🎵 SUB-EVENTOS ({len(subeventos)} total)', heading1))
+            story.append(Spacer(1, 4))
+
+            for idx, sub in enumerate(subeventos, 1):
+                sub_cfg = getattr(sub, 'configuracion', None)
+
+                # Sub-event header
+                story.append(Paragraph(
+                    f'  {idx}. {sub.nombre.upper()}',
+                    heading2,
+                ))
+
+                # Calculate duration
+                dur = ''
+                if sub.fecha_inicio and sub.fecha_fin:
+                    delta = sub.fecha_fin - sub.fecha_inicio
+                    horas = delta.total_seconds() / 3600
+                    dur = f'{horas:.1f}h'
+
+                sub_data = [
+                    ['├─ Tipo:', str(sub.tipo) if sub.tipo else '—'],
+                    ['├─ Fechas:', (
+                        f'{sub.fecha_inicio.strftime("%d %b %Y %H:%M")} – '
+                        f'{sub.fecha_fin.strftime("%H:%M")} ({dur})'
+                        if sub.fecha_inicio and sub.fecha_fin else '—'
+                    )],
+                    ['├─ Ubicación:', str(sub.ubicacion) if sub.ubicacion else str(evento.ubicacion) + ' (heredada)'],
+                    ['├─ Capacidad:', f'{sub.max_asistentes:,} personas'],
+                    ['└─ Presupuesto:', f'${float(sub.presupuesto or 0):,.2f}'],
+                ]
+                ts = Table(sub_data, colWidths=[4.5 * cm, 12.5 * cm])
+                ts.setStyle(TableStyle([
+                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                    ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#5b5ef4')),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 20),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                    ('TOPPADDING', (0, 0), (-1, -1), 1),
+                ]))
+                story.append(ts)
+
+                # Services
+                if sub_cfg:
+                    servicios_items = [
+                        ('Catering',    sub_cfg.tiene_catering),
+                        ('Escenario',   sub_cfg.tiene_escenario),
+                        ('Iluminación', sub_cfg.tiene_iluminacion),
+                        ('Seguridad',   sub_cfg.tiene_seguridad),
+                        ('Streaming',   sub_cfg.tiene_streaming),
+                        ('Decoración',  sub_cfg.tiene_decoracion),
+                    ]
+                    servicios_lines = []
+                    for svc_nombre, svc_activo in servicios_items:
+                        mark = '✓' if svc_activo else '✗'
+                        color = '#1a6b1a' if svc_activo else '#999999'
+                        servicios_lines.append(
+                            f'<font color="{color}">   └─ {mark} {svc_nombre}</font>'
+                        )
+                    story.append(Paragraph(
+                        '   Servicios Incluidos:', small_gray
+                    ))
+                    for line in servicios_lines:
+                        story.append(Paragraph(line, tree_item))
+
+                story.append(Spacer(1, 6))
+
+        # ── Summary ────────────────────────────────────────────────────────────
+        story.append(HRFlowable(width='100%', thickness=1, color=colors.HexColor('#cccccc')))
+        story.append(Spacer(1, 6))
+        story.append(Paragraph('📊 RESUMEN CONSOLIDADO', heading1))
+
+        dur_total = evento.calcular_duracion_total()
+        cap_max   = evento.obtener_capacidad_maxima()
+        pres_total = evento.calcular_presupuesto_total()
+
+        summary_data = [
+            ['Total de Sub-eventos:', str(len(subeventos))],
+            ['Duración Total:', f'{dur_total:.1f} horas'],
+            ['Capacidad Máxima:', f'{cap_max:,} personas'],
+            ['Presupuesto Total:', f'${pres_total:,.2f}'],
+        ]
+        tsum = Table(summary_data, colWidths=[6 * cm, 11 * cm])
+        tsum.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#333366')),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        story.append(tsum)
+        story.append(Spacer(1, 16))
+
+        # ── Footer ────────────────────────────────────────────────────────────
+        story.append(HRFlowable(width='100%', thickness=2, color=colors.HexColor('#5b5ef4')))
+        story.append(Spacer(1, 4))
+        now_str = tz.now().strftime('%d %b %Y %H:%M')
+        story.append(Paragraph(
+            f'Generado: {now_str} | Sistema de Gestión de Eventos',
+            ParagraphStyle('Footer', parent=styles['Normal'],
+                           fontSize=8, textColor=colors.HexColor('#888888'),
+                           alignment=TA_CENTER),
+        ))
+
+        doc.build(story)
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        return pdf_bytes
+
+
+# ---------------------------------------------------------------------------
 # Ejemplo de uso (ejecutar directamente: python bridge.py)
 # ---------------------------------------------------------------------------
 
