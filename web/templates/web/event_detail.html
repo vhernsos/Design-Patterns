@@ -207,6 +207,7 @@
         {% csrf_token %}
         <button type="submit" class="btn btn-danger btn-sm">✕</button>
       </form>
+      <a href="{% url 'editar_subevento' evento.pk sub.pk %}" class="btn btn-warning btn-sm">✏️</a>
     </div>
     {% endfor %}
   </div>

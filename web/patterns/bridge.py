@@ -391,11 +391,8 @@ class ReporteCompleto:
             from reportlab.lib.enums import TA_CENTER, TA_LEFT
             import io
             from django.utils import timezone as tz
-        except ImportError as exc:
-            raise ImportError(
-                "reportlab is required for PDF generation. "
-                "Install it with: pip install reportlab"
-            ) from exc
+        except ImportError:
+            return self._generar_html_fallback(evento)
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -625,6 +622,131 @@ class ReporteCompleto:
         pdf_bytes = buffer.getvalue()
         buffer.close()
         return pdf_bytes
+
+    def _generar_html_fallback(self, evento) -> bytes:
+        """
+        Genera un reporte HTML descargable cuando reportlab no está instalado.
+        El navegador puede imprimirlo/guardarlo como PDF usando Ctrl+P → Guardar como PDF.
+        Devuelve bytes UTF-8 del HTML generado.
+        """
+        from django.utils import timezone as tz
+
+        now_str = tz.now().strftime('%d %b %Y %H:%M')
+        fecha_inicio = evento.fecha_inicio.strftime('%d/%m/%Y %H:%M') if evento.fecha_inicio else '—'
+        fecha_fin    = evento.fecha_fin.strftime('%d/%m/%Y %H:%M')    if evento.fecha_fin    else '—'
+        presupuesto  = f'${evento.presupuesto:,.2f}' if evento.presupuesto else '—'
+        organizador  = evento.organizador.username if evento.organizador else '—'
+        ubicacion    = str(evento.ubicacion) if evento.ubicacion else '—'
+        tipo         = str(evento.tipo)      if evento.tipo      else '—'
+        descripcion  = evento.descripcion    if evento.descripcion else ''
+
+        # Build services rows
+        servicios_html = ''
+        if hasattr(evento, 'configuracion') and evento.configuracion:
+            c = evento.configuracion
+            items = [
+                ('🍽️ Catering',       c.tiene_catering),
+                ('🎭 Escenario',       c.tiene_escenario),
+                ('💡 Iluminación',     c.tiene_iluminacion),
+                ('🔒 Seguridad',       c.tiene_seguridad),
+                ('📡 Streaming',       c.tiene_streaming),
+                ('🎨 Decoración',      c.tiene_decoracion),
+            ]
+            for nombre, activo in items:
+                color  = '#1a6b1a' if activo else '#999'
+                symbol = '✓' if activo else '✗'
+                servicios_html += (
+                    f'<tr><td>{nombre}</td>'
+                    f'<td style="color:{color};font-weight:bold;">{symbol}</td></tr>'
+                )
+
+        # Build sub-events rows
+        subeventos_html = ''
+        for sub in evento.subeventos.all():
+            sub_inicio = sub.fecha_inicio.strftime('%d/%m/%Y %H:%M') if sub.fecha_inicio else '—'
+            sub_fin    = sub.fecha_fin.strftime('%d/%m/%Y %H:%M')    if sub.fecha_fin    else '—'
+            sub_tipo   = str(sub.tipo)      if sub.tipo      else '—'
+            sub_ub     = str(sub.ubicacion) if sub.ubicacion else '—'
+            subeventos_html += (
+                f'<tr>'
+                f'<td>{sub.nombre}</td>'
+                f'<td>{sub_tipo}</td>'
+                f'<td>{sub_inicio}</td>'
+                f'<td>{sub_fin}</td>'
+                f'<td>{sub_ub}</td>'
+                f'<td>{sub.max_asistentes}</td>'
+                f'</tr>'
+            )
+
+        # Build optional sub-events section
+        if evento.subeventos.exists():
+            count = evento.subeventos.count()
+            subeventos_section = (
+                f'<h2>🌿 Sub-eventos ({count})</h2>'
+                f'<table><thead><tr>'
+                f'<th>Nombre</th><th>Tipo</th><th>Inicio</th>'
+                f'<th>Fin</th><th>Ubicación</th><th>Asistentes</th>'
+                f'</tr></thead>'
+                f'<tbody>{subeventos_html}</tbody></table>'
+            )
+        else:
+            subeventos_section = ''
+
+        html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reporte: {evento.nombre}</title>
+  <style>
+    @page {{ margin: 2cm; }}
+    body {{ font-family: Arial, sans-serif; font-size: 11pt; color: #1a1a2e; margin: 0; padding: 2em; }}
+    h1 {{ font-size: 20pt; color: #5b5ef4; margin-bottom: .25em; }}
+    h2 {{ font-size: 13pt; color: #2d2d6b; border-bottom: 2px solid #5b5ef4; padding-bottom: .2em; margin-top: 1.5em; }}
+    table {{ border-collapse: collapse; width: 100%; margin-top: .5em; }}
+    th {{ background: #5b5ef4; color: #fff; padding: 6px 10px; text-align: left; font-size: 10pt; }}
+    td {{ padding: 5px 10px; border-bottom: 1px solid #ddd; font-size: 10pt; }}
+    tr:nth-child(even) td {{ background: #f5f5ff; }}
+    .meta {{ display: grid; grid-template-columns: 1fr 1fr; gap: .4em 2em; margin-top: .5em; }}
+    .meta-item {{ font-size: 10pt; }}
+    .meta-item strong {{ color: #5b5ef4; }}
+    .footer {{ margin-top: 2em; font-size: 8pt; color: #888; text-align: center; border-top: 1px solid #ddd; padding-top: .5em; }}
+    .badge {{ display: inline-block; background: #5b5ef4; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 9pt; margin-left: 6px; }}
+    .print-hint {{ background: #fffbe6; border: 1px solid #f0c040; padding: .5em 1em; border-radius: 6px; font-size: 9pt; margin-bottom: 1em; }}
+    @media print {{ .print-hint {{ display: none; }} }}
+  </style>
+</head>
+<body>
+  <div class="print-hint">
+    💡 Para guardar como PDF: usa <strong>Ctrl+P</strong> (o Archivo → Imprimir) y elige <em>Guardar como PDF</em>.
+  </div>
+
+  <h1>📋 Reporte Completo</h1>
+  <h2 style="font-size:16pt;border:none;margin-top:.1em;">{evento.nombre} <span class="badge">{tipo}</span></h2>
+
+  <h2>📌 Información General</h2>
+  <div class="meta">
+    <div class="meta-item"><strong>Organizador:</strong> {organizador}</div>
+    <div class="meta-item"><strong>Ubicación:</strong> {ubicacion}</div>
+    <div class="meta-item"><strong>Fecha inicio:</strong> {fecha_inicio}</div>
+    <div class="meta-item"><strong>Fecha fin:</strong> {fecha_fin}</div>
+    <div class="meta-item"><strong>Máx. asistentes:</strong> {evento.max_asistentes}</div>
+    <div class="meta-item"><strong>Presupuesto:</strong> {presupuesto}</div>
+  </div>
+  {'<p style="margin-top:.75em;font-size:10pt;">' + descripcion + '</p>' if descripcion else ''}
+
+  <h2>⚙️ Configuración de Servicios</h2>
+  <table>
+    <thead><tr><th>Servicio</th><th>Estado</th></tr></thead>
+    <tbody>{servicios_html if servicios_html else '<tr><td colspan="2">Sin configuración disponible</td></tr>'}</tbody>
+  </table>
+
+  {subeventos_section}
+
+  <div class="footer">Generado: {now_str} | Sistema de Gestión de Eventos</div>
+</body>
+</html>"""
+
+        return html.encode('utf-8')
 
 
 # ---------------------------------------------------------------------------
