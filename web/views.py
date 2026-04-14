@@ -463,6 +463,16 @@ def clone_event(request, pk):
             nuevo_evento = clone.save_to_db(request.user)
             nuevo_evento.evento_original = original
             nuevo_evento.save()
+
+            # Clone sub-events if the original has any
+            for sub_evento in original.subeventos.all():
+                sub_prototype = EventoPrototype(sub_evento)
+                sub_clone = sub_prototype.clonar()
+                sub_clone.set_nombre(f"Copia de {sub_evento.nombre}")
+                sub_evento_clonado = sub_clone.save_to_db(request.user)
+                sub_evento_clonado.evento_padre = nuevo_evento
+                sub_evento_clonado.save()
+
             messages.success(
                 request,
                 f'Evento clonado exitosamente como "{nuevo_evento.nombre}".'
@@ -721,9 +731,14 @@ def validar_evento(request, pk):
 
     existentes = []
     if evento.ubicacion:
-        qs = Evento.objects.filter(ubicacion=evento.ubicacion).exclude(pk=pk)
+        qs = (
+            Evento.objects
+            .filter(ubicacion=evento.ubicacion)
+            .exclude(pk=pk)
+            .exclude(evento_padre=evento)   # exclude own sub-events
+        )
         for ev in qs:
-            existentes.append({'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
+            existentes.append({'id': ev.pk, 'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
 
     datos = DatosValidacion(
         nombre=evento.nombre,
@@ -738,13 +753,16 @@ def validar_evento(request, pk):
         eventos_existentes=existentes,
         limite_global_asistentes=singleton.get_limite_asistentes(),
         modo_mantenimiento=singleton.get_modo_mantenimiento(),
+        exclude_evento_id=pk,
     )
 
     # Run each validator individually for detailed UI feedback
     from .patterns.chain_of_responsibility import (
         ValidadorCapacidad, ValidadorServicios,
         ValidadorPresupuesto, ValidadorHorarios, ValidadorRestriccionesGlobales,
+        ResultadoValidacion,
     )
+
     validadores = [
         ValidadorCapacidad(),
         ValidadorServicios(),
@@ -752,6 +770,20 @@ def validar_evento(request, pk):
         ValidadorHorarios(),
         ValidadorRestriccionesGlobales(),
     ]
+
+    # Sub-events are exempt from the validation chain
+    if evento.evento_padre is not None:
+        resultado_global = ResultadoValidacion(aprobado=True, mensaje="Sub-evento exento de validación global.")
+        resultados_detalle = [
+            {'nombre': v.nombre, 'aprobado': True, 'mensaje': 'Sub-evento exento'}
+            for v in validadores
+        ]
+        return render(request, 'web/validacion_evento.html', {
+            'evento': evento,
+            'resultado_global': resultado_global,
+            'resultados_detalle': resultados_detalle,
+        })
+
     resultados_detalle = []
     for v in validadores:
         res = v.manejar(datos)
