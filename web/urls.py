@@ -15,6 +15,8 @@ urlpatterns = [
          views.agregar_subevento, name='agregar_subevento'),
     path('events/<int:evento_id>/subeventos/<int:subevento_id>/eliminar/',
          views.eliminar_subevento, name='eliminar_subevento'),
+    path('events/<int:evento_id>/subeventos/<int:subevento_id>/editar/',
+         views.editar_subevento, name='editar_subevento'),
 
     # Bridge
     path('events/<int:pk>/reporte/<str:tipo>/<str:formato>/',

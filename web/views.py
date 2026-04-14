@@ -53,10 +53,12 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
 
     capacidad_ub = ubicacion_obj.capacidad if ubicacion_obj else 0
 
-    # Collect existing events at same location to check schedule conflicts
+    # Collect existing root events at same location to check schedule conflicts.
+    # Sub-events (evento_padre IS NOT NULL) are excluded because they are nested
+    # within their parent and intentionally share the same location/dates.
     existentes = []
     if ubicacion_obj:
-        qs = Evento.objects.filter(ubicacion=ubicacion_obj)
+        qs = Evento.objects.filter(ubicacion=ubicacion_obj, evento_padre__isnull=True)
         for ev in qs:
             existentes.append({'id': ev.pk, 'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
 
@@ -571,6 +573,33 @@ def eliminar_subevento(request, evento_id, subevento_id):
     return redirect('event_detail', pk=evento_id)
 
 
+@login_required
+def editar_subevento(request, evento_id, subevento_id):
+    """GET/POST: edit an individual sub-event."""
+    evento_padre = get_object_or_404(Evento, pk=evento_id)
+    subevento    = get_object_or_404(Evento, pk=subevento_id, evento_padre=evento_padre)
+    config_obj, _ = ConfiguracionEvento.objects.get_or_create(evento=subevento)
+
+    if request.method == 'POST':
+        form        = SubEventoForm(request.POST, instance=subevento)
+        config_form = ConfiguracionEventoForm(request.POST, instance=config_obj)
+        if form.is_valid() and config_form.is_valid():
+            form.save()
+            config_form.save()
+            messages.success(request, f'Sub-evento "{subevento.nombre}" actualizado.')
+            return redirect('event_detail', pk=evento_padre.pk)
+    else:
+        form        = SubEventoForm(instance=subevento)
+        config_form = ConfiguracionEventoForm(instance=config_obj)
+
+    return render(request, 'web/edit_subevento.html', {
+        'form':        form,
+        'config_form': config_form,
+        'evento':      evento_padre,
+        'subevento':   subevento,
+    })
+
+
 # ── BRIDGE: Report generation ─────────────────────────────────────────────────
 
 @login_required
@@ -589,13 +618,21 @@ def generar_reporte(request, pk, tipo, formato):
     )
 
     if formato == 'pdf':
-        # Use ReporteCompleto with real reportlab PDF generation
+        # Use ReporteCompleto with real reportlab PDF generation.
+        # Falls back to a downloadable HTML report if reportlab is not installed.
         reporte = ReporteCompleto()
-        pdf_bytes = reporte.generar_pdf(evento)
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = (
-            f'attachment; filename="reporte_completo_{evento.pk}.pdf"'
-        )
+        resultado = reporte.generar_pdf(evento)
+        # HTML fallback: starts with the HTML doctype declaration
+        if resultado.startswith(b'<!DOCTYPE'):
+            response = HttpResponse(resultado, content_type='text/html; charset=utf-8')
+            response['Content-Disposition'] = (
+                f'inline; filename="reporte_completo_{evento.pk}.html"'
+            )
+        else:
+            response = HttpResponse(resultado, content_type='application/pdf')
+            response['Content-Disposition'] = (
+                f'attachment; filename="reporte_completo_{evento.pk}.pdf"'
+            )
         return response
 
     # Other formats use the original Bridge abstraction
