@@ -71,7 +71,7 @@ class Evento(models.Model):
     # ── Payment fields ────────────────────────────────────────────────────────
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(null=True, blank=True)
-    monto_pagado = models.FloatField(null=True, blank=True)
+    monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         return self.nombre
@@ -106,11 +106,12 @@ class Evento(models.Model):
                 cap = sub_cap
         return cap
 
-    def calcular_monto_total(self) -> float:
+    def calcular_monto_total(self):
         """Calculates total amount: base budget + sub-events budgets."""
-        total = float(self.presupuesto or 0)
+        from decimal import Decimal
+        total = self.presupuesto or Decimal('0')
         for sub in self.subeventos.all():
-            total += float(sub.presupuesto or 0)
+            total += sub.presupuesto or Decimal('0')
         return total
 
 
@@ -264,7 +265,7 @@ class Transaccion(models.Model):
     pasarela = models.ForeignKey(
         Pasarela, on_delete=models.SET_NULL, null=True, related_name='transacciones'
     )
-    monto = models.FloatField()
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     referencia_externa = models.CharField(max_length=200, blank=True)
     fecha = models.DateTimeField(default=timezone.now)
