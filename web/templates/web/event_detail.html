@@ -237,41 +237,61 @@
   </p>
 </div>
 
-<!-- ── ADAPTER: External providers section ───────────────────────────────── -->
+<!-- ── ADAPTER: Payment Gateway section ──────────────────────────────────── -->
 <div class="card card-elevated" style="margin-top:1.5rem;">
   <div style="display:flex;align-items:center;justify-content:space-between;
               margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
     <h3 style="margin:0;font-size:1rem;color:var(--orange);">
-      🔌 Adapter — Proveedores Externos
+      💰 Adapter — Pasarelas de Pago
     </h3>
-    <a href="{% url 'listar_proveedores' evento.pk %}" class="btn btn-warning btn-sm">
-      🏪 Contratar Servicios
-    </a>
   </div>
-  {% with contratos=evento.servicios_contratados.all %}
-  {% if contratos %}
-  <div style="display:flex;flex-direction:column;gap:.5rem;">
-    {% for c in contratos %}
-    <div style="display:flex;align-items:center;gap:.75rem;
-                padding:.5rem .8rem;background:rgba(255,255,255,0.04);
-                border-radius:8px;">
-      <span>🔌</span>
-      <span style="flex:1;font-size:.9rem;color:var(--gray-200);">{{ c.proveedor.nombre }}</span>
-      <span class="badge
-        {% if c.estado == 'confirmado' or c.estado == 'completado' %}badge-green
-        {% elif c.estado == 'cancelado' %}badge-red
-        {% else %}badge-orange{% endif %}">
-        {{ c.get_estado_display }}
-      </span>
+
+  {% if evento.pagado %}
+  <!-- Paid state -->
+  <div style="background:rgba(6,214,160,0.07);border:1px solid rgba(6,214,160,0.25);
+              border-radius:12px;padding:1.2rem 1.4rem;">
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;">
+      <span style="font-size:1.3rem;">✅</span>
+      <span style="font-weight:700;color:#059669;font-size:1rem;">EVENTO PAGADO</span>
     </div>
-    {% endfor %}
+    <div style="display:flex;flex-direction:column;gap:.5rem;font-size:.9rem;">
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:var(--gray-500);">Monto Pagado</span>
+        <span style="font-weight:700;color:#059669;">${{ evento.monto_pagado|floatformat:2 }}</span>
+      </div>
+      {% with t=evento.transacciones.last %}
+      {% if t %}
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:var(--gray-500);">Pasarela</span>
+        <span style="color:var(--gray-200);">{% if t.pasarela %}{{ t.pasarela.icono }} {{ t.pasarela.nombre }}{% endif %}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:var(--gray-500);">Referencia</span>
+        <span style="color:var(--gray-300);font-family:monospace;font-size:.85rem;">{{ t.referencia_externa }}</span>
+      </div>
+      {% endif %}
+      {% endwith %}
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:var(--gray-500);">Fecha de Pago</span>
+        <span style="color:var(--gray-300);">{{ evento.fecha_pago|date:"d M Y · H:i" }}</span>
+      </div>
+    </div>
   </div>
   {% else %}
-  <p style="color:var(--gray-500);font-size:.9rem;margin:0;">
-    Sin servicios contratados. Haz clic en <strong>Contratar Servicios</strong>.
-  </p>
+  <!-- Unpaid state -->
+  <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);
+              border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;">
+    <div style="font-size:.85rem;color:var(--gray-400);">
+      💡 Monto calculado:
+      <strong style="color:var(--orange);">${{ evento.calcular_monto_total|floatformat:2 }}</strong>
+      (evento + sub-eventos)
+    </div>
+  </div>
+  <a href="{% url 'procesar_pago' evento.pk %}" class="btn btn-primary"
+     style="display:inline-flex;align-items:center;gap:.4rem;">
+    🚀 Pagar Evento
+  </a>
   {% endif %}
-  {% endwith %}
 </div>
 
 <!-- ── CHAIN OF RESPONSIBILITY: Validation section ───────────────────────── -->

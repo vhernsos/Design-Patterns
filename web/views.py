@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 import json
 
-from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado
+from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado, Pasarela, Transaccion
 from .forms import (
     EventoForm, ConfiguracionEventoForm, GlobalConfigForm,
     BuildEventoForm, CloneEventoForm, SubEventoForm,
@@ -28,6 +28,7 @@ from .patterns.adapter import (
     AdaptadorCateringProveedorA, AdaptadorCateringProveedorB,
     AdaptadorStripe, AdaptadorPayPal, AdaptadorMercadoPago,
     AdaptadorYouTube, AdaptadorVimeo, AdaptadorFacebookLive,
+    get_adapter_for_pasarela,
 )
 
 
@@ -836,4 +837,105 @@ def validar_evento(request, pk):
         'evento': evento,
         'resultado_global': resultado_global,
         'resultados_detalle': resultados_detalle,
+    })
+
+
+# ── PAYMENT GATEWAY: Adapter Pattern ─────────────────────────────────────────
+
+@login_required
+def procesar_pago(request, evento_id):
+    """Display payment form and process payment using the Adapter pattern."""
+    evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
+
+    # Only one payment per event
+    if evento.pagado:
+        messages.warning(request, '⚠️ Este evento ya ha sido pagado.')
+        return redirect('event_detail', pk=evento_id)
+
+    pasarelas = Pasarela.objects.filter(activa=True)
+    monto_total = evento.calcular_monto_total()
+
+    if request.method == 'POST':
+        pasarela_id = request.POST.get('pasarela_id')
+        if not pasarela_id:
+            messages.error(request, '❌ Debes seleccionar una pasarela de pago.')
+            return render(request, 'web/procesar_pago.html', {
+                'evento': evento,
+                'pasarelas': pasarelas,
+                'monto_total': monto_total,
+            })
+
+        pasarela = get_object_or_404(Pasarela, pk=pasarela_id, activa=True)
+
+        # Use Adapter Pattern to process the payment
+        adapter = get_adapter_for_pasarela(pasarela.tipo)
+        datos_evento = {
+            'evento_id': str(evento.pk),
+            'evento_nombre': evento.nombre,
+            'asistentes': evento.max_asistentes,
+        }
+        resultado = adapter.procesar(monto_total, datos_evento)
+
+        estado = 'procesada' if resultado.get('exitoso', False) else 'fallida'
+
+        transaccion = Transaccion.objects.create(
+            evento=evento,
+            pasarela=pasarela,
+            monto=monto_total,
+            estado=estado,
+            referencia_externa=resultado.get('referencia', ''),
+            usuario=request.user,
+        )
+
+        if estado == 'procesada':
+            from django.utils import timezone
+            evento.pagado = True
+            evento.fecha_pago = timezone.now()
+            evento.monto_pagado = monto_total
+            evento.save(update_fields=['pagado', 'fecha_pago', 'monto_pagado'])
+            messages.success(
+                request,
+                f'✅ {resultado.get("mensaje", "Pago procesado")} — Referencia: {transaccion.referencia_externa}'
+            )
+        else:
+            messages.error(request, '❌ El pago no pudo procesarse. Intenta de nuevo.')
+
+        return redirect('event_detail', pk=evento_id)
+
+    return render(request, 'web/procesar_pago.html', {
+        'evento': evento,
+        'pasarelas': pasarelas,
+        'monto_total': monto_total,
+    })
+
+
+@login_required
+def historial_transacciones(request):
+    """Show the payment transaction history for the authenticated user."""
+    transacciones = Transaccion.objects.filter(
+        usuario=request.user
+    ).select_related('evento', 'pasarela').order_by('-fecha')
+
+    # Filters
+    estado_filtro = request.GET.get('estado', '')
+    evento_filtro = request.GET.get('evento', '')
+
+    if estado_filtro:
+        transacciones = transacciones.filter(estado=estado_filtro)
+    if evento_filtro:
+        transacciones = transacciones.filter(evento__nombre__icontains=evento_filtro)
+
+    return render(request, 'web/historial_transacciones.html', {
+        'transacciones': transacciones,
+        'estado_filtro': estado_filtro,
+        'evento_filtro': evento_filtro,
+    })
+
+
+@login_required
+def detalle_transaccion(request, transaccion_id):
+    """Show details of a single transaction."""
+    transaccion = get_object_or_404(Transaccion, pk=transaccion_id, usuario=request.user)
+    return render(request, 'web/detalle_transaccion.html', {
+        'transaccion': transaccion,
     })

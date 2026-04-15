@@ -68,6 +68,11 @@ class Evento(models.Model):
     )
     presupuesto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
+    # ── Payment fields ────────────────────────────────────────────────────────
+    pagado = models.BooleanField(default=False)
+    fecha_pago = models.DateTimeField(null=True, blank=True)
+    monto_pagado = models.FloatField(null=True, blank=True)
+
     def __str__(self):
         return self.nombre
 
@@ -100,6 +105,13 @@ class Evento(models.Model):
             if sub_cap > cap:
                 cap = sub_cap
         return cap
+
+    def calcular_monto_total(self) -> float:
+        """Calculates total amount: base budget + sub-events budgets."""
+        total = float(self.presupuesto or 0)
+        for sub in self.subeventos.all():
+            total += float(sub.presupuesto or 0)
+        return total
 
 
 class ConfiguracionEvento(models.Model):
@@ -215,3 +227,48 @@ class ServicioContratado(models.Model):
 
     def __str__(self):
         return f"{self.proveedor.nombre} → {self.evento.nombre} [{self.estado}]"
+
+# ── Payment gateway models ─────────────────────────────────────────────────────
+
+class Pasarela(models.Model):
+    """Represents a payment gateway (Stripe, PayPal, MercadoPago)."""
+
+    TIPO_CHOICES = [
+        ('stripe',       'Stripe'),
+        ('paypal',       'PayPal'),
+        ('mercadopago',  'MercadoPago'),
+    ]
+
+    nombre = models.CharField(max_length=100)
+    tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
+    descripcion = models.TextField(blank=True)
+    icono = models.CharField(max_length=10, default='💳')
+    activa = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.nombre
+
+
+class Transaccion(models.Model):
+    """Records a payment transaction for an event."""
+
+    ESTADO_CHOICES = [
+        ('pendiente',  'Pendiente'),
+        ('procesada',  'Procesada'),
+        ('fallida',    'Fallida'),
+    ]
+
+    evento = models.ForeignKey(
+        Evento, on_delete=models.CASCADE, related_name='transacciones'
+    )
+    pasarela = models.ForeignKey(
+        Pasarela, on_delete=models.SET_NULL, null=True, related_name='transacciones'
+    )
+    monto = models.FloatField()
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    referencia_externa = models.CharField(max_length=200, blank=True)
+    fecha = models.DateTimeField(default=timezone.now)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transacciones')
+
+    def __str__(self):
+        return f"{self.pasarela} — {self.evento.nombre} [{self.estado}]"
