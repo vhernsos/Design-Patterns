@@ -3,6 +3,7 @@ from .models import (
     TipoEvento, Ubicacion, Servicio,
     Evento, ConfiguracionEvento, PlantillaEvento, GlobalConfig,
     ProveedorServicio, ServicioContratado,
+    Pasarela, Transaccion,
 )
 
 
@@ -65,3 +66,16 @@ class ServicioContratadoAdmin(admin.ModelAdmin):
     list_display = ['proveedor', 'evento', 'estado', 'fecha_solicitud', 'costo']
     list_filter = ['estado', 'proveedor__tipo']
     search_fields = ['evento__nombre', 'proveedor__nombre']
+
+
+@admin.register(Pasarela)
+class PasarelaAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'tipo', 'icono', 'activa']
+    list_filter = ['tipo', 'activa']
+
+
+@admin.register(Transaccion)
+class TransaccionAdmin(admin.ModelAdmin):
+    list_display = ['evento', 'pasarela', 'monto', 'estado', 'fecha', 'usuario']
+    list_filter = ['estado', 'pasarela']
+    search_fields = ['evento__nombre', 'referencia_externa']

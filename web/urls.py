@@ -35,4 +35,12 @@ urlpatterns = [
     # Chain of Responsibility
     path('events/<int:pk>/validar/',
          views.validar_evento, name='validar_evento'),
+
+    # Payment Gateway (Adapter Pattern)
+    path('pagar/<int:evento_id>/',
+         views.procesar_pago, name='procesar_pago'),
+    path('historial-transacciones/',
+         views.historial_transacciones, name='historial_transacciones'),
+    path('transaccion/<int:transaccion_id>/',
+         views.detalle_transaccion, name='detalle_transaccion'),
 ]

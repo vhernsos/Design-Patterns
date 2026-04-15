@@ -605,3 +605,93 @@ if __name__ == "__main__":
     for plataforma in plataformas:
         resultado = procesar_con_proveedor(plataforma, datos_stream)
         print(f"\n[{plataforma.nombre_proveedor}] → {resultado}")
+
+
+# ── Payment Gateway Adapters (Professional System) ───────────────────────────
+import random
+from abc import ABC, abstractmethod
+from datetime import datetime
+
+
+class AdapterPasarela(ABC):
+    """Common interface for all payment gateways."""
+
+    @abstractmethod
+    def procesar(self, monto: float, datos_evento: dict) -> dict:
+        """Processes a payment and returns the result."""
+        pass
+
+    @abstractmethod
+    def obtener_nombre(self) -> str:
+        pass
+
+    @abstractmethod
+    def obtener_icono(self) -> str:
+        pass
+
+
+class StripeAdapter(AdapterPasarela):
+    """Adapter for Stripe payment gateway (simulated)."""
+
+    def procesar(self, monto: float, datos_evento: dict) -> dict:
+        return {
+            'exitoso': True,
+            'referencia': f"STRIPE-{datetime.now().strftime('%Y%m%d')}-{random.randint(100000, 999999)}",
+            'mensaje': 'Pago procesado exitosamente con Stripe',
+        }
+
+    def obtener_nombre(self) -> str:
+        return "Stripe"
+
+    def obtener_icono(self) -> str:
+        return "💳"
+
+
+class PayPalAdapter(AdapterPasarela):
+    """Adapter for PayPal payment gateway (simulated)."""
+
+    def procesar(self, monto: float, datos_evento: dict) -> dict:
+        return {
+            'exitoso': True,
+            'referencia': f"PAYPAL-{datetime.now().strftime('%Y%m%d')}-{random.randint(100000, 999999)}",
+            'mensaje': 'Pago procesado exitosamente con PayPal',
+        }
+
+    def obtener_nombre(self) -> str:
+        return "PayPal"
+
+    def obtener_icono(self) -> str:
+        return "🅿️"
+
+
+class MercadoPagoAdapter(AdapterPasarela):
+    """Adapter for MercadoPago payment gateway (simulated)."""
+
+    def procesar(self, monto: float, datos_evento: dict) -> dict:
+        return {
+            'exitoso': True,
+            'referencia': f"MERCADOPAGO-{datetime.now().strftime('%Y%m%d')}-{random.randint(100000, 999999)}",
+            'mensaje': 'Pago procesado exitosamente con MercadoPago',
+        }
+
+    def obtener_nombre(self) -> str:
+        return "MercadoPago"
+
+    def obtener_icono(self) -> str:
+        return "💰"
+
+
+# Registry: maps Pasarela.tipo to an AdapterPasarela instance
+_ADAPTER_MAP: dict = {
+    'stripe':      StripeAdapter,
+    'paypal':      PayPalAdapter,
+    'mercadopago': MercadoPagoAdapter,
+}
+
+
+def get_adapter_for_pasarela(tipo: str) -> AdapterPasarela:
+    """Returns the appropriate AdapterPasarela instance for the given gateway type."""
+    cls = _ADAPTER_MAP.get(tipo)
+    if cls is None:
+        raise ValueError(f"No adapter found for gateway type: {tipo}")
+    return cls()

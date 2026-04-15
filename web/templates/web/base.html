@@ -24,6 +24,7 @@
   <ul class="navbar-nav">
     <li><a href="{% url 'dashboard' %}">Panel de Control</a></li>
     <li><a href="{% url 'build_event' %}">Construir</a></li>
+    <li><a href="{% url 'historial_transacciones' %}">💳 Transacciones</a></li>
     {% if user.is_staff %}
     <li><a href="{% url 'global_config' %}">⚙ Configuración</a></li>
     {% endif %}
