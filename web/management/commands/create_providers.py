@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 from web.models import ProveedorCatering, ProveedorStreaming
 
@@ -11,12 +13,12 @@ class Command(BaseCommand):
             {
                 'nombre': 'Catering Premium',
                 'descripcion': 'Menú gourmet con servicio de camareros',
-                'precio': 5000,
+                'precio': Decimal('5000.00'),
             },
             {
                 'nombre': 'Catering Estándar',
                 'descripcion': 'Menú básico con bebidas incluidas',
-                'precio': 3000,
+                'precio': Decimal('3000.00'),
             },
         ]
         for data in catering_data:
@@ -32,12 +34,12 @@ class Command(BaseCommand):
             {
                 'nombre': 'Streaming 4K Premium',
                 'descripcion': 'Transmisión en 4K con múltiples cámaras',
-                'precio': 8000,
+                'precio': Decimal('8000.00'),
             },
             {
                 'nombre': 'Streaming HD Básico',
                 'descripcion': 'Transmisión en HD con 1 cámara',
-                'precio': 4000,
+                'precio': Decimal('4000.00'),
             },
         ]
         for data in streaming_data:
