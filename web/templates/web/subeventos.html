@@ -1,81 +1,13 @@
 {% extends 'web/base.html' %}
-{% block title %}Añadir Sub-evento – {{ evento_padre.nombre }}{% endblock %}
 {% block content %}
 
-<div style="max-width:680px;margin:0 auto;">
+<h2>Añadir Sub-evento a: {{ evento_padre.nombre }}</h2>
 
-  <!-- Breadcrumb -->
-  <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--gray-400);">
-    <a href="{% url 'dashboard' %}" style="color:var(--gray-400);">Panel</a>
-    <span>›</span>
-    <a href="{% url 'event_detail' evento_padre.pk %}" style="color:var(--gray-400);">{{ evento_padre.nombre }}</a>
-    <span>›</span>
-    <span style="color:var(--gray-200);">Añadir Sub-evento</span>
-  </div>
+<form method="post" class="card p-4 shadow">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary">Guardar</button>
+    <a href="{% url 'event_detail' evento_padre.pk %}" class="btn btn-secondary ms-2">Cancelar</a>
+</form>
 
-  <!-- Header -->
-  <div class="card card-elevated" style="margin-bottom:1.5rem;padding:1.5rem;">
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
-      <span style="font-size:1.8rem;">🌿</span>
-      <div>
-        <h2 style="margin:0;font-size:1.3rem;">Añadir Sub-evento</h2>
-        <p style="margin:0;color:var(--gray-400);font-size:.85rem;">
-          Patrón <strong style="color:var(--primary);">Composite</strong> — Estructura jerárquica de eventos
-        </p>
-      </div>
-    </div>
-    <div style="background:rgba(91,94,244,0.08);border:1px solid rgba(91,94,244,0.2);
-                border-radius:8px;padding:.75rem 1rem;font-size:.85rem;color:var(--gray-300);">
-      Estás agregando un sub-evento a
-      <strong style="color:var(--primary);">{{ evento_padre.nombre }}</strong>.
-      El presupuesto y duración se calcularán automáticamente de forma recursiva.
-    </div>
-  </div>
-
-  <!-- Form -->
-  <div class="card">
-    <form method="post">
-      {% csrf_token %}
-      <div style="display:grid;gap:1rem;">
-        {% for field in form %}
-        <div>
-          <label style="display:block;font-size:.85rem;font-weight:600;
-                        color:var(--gray-200);margin-bottom:.35rem;">
-            {{ field.label }}{% if field.field.required %} <span style="color:var(--red);">*</span>{% endif %}
-          </label>
-          {{ field }}
-          {% if field.errors %}
-          <p style="color:var(--red);font-size:.8rem;margin-top:.25rem;">{{ field.errors|join:", " }}</p>
-          {% endif %}
-        </div>
-        {% endfor %}
-      </div>
-
-      <div style="margin-top:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;">
-        <button type="submit" class="btn btn-primary">
-          🌿 Añadir Sub-evento
-        </button>
-        <a href="{% url 'event_detail' evento_padre.pk %}" class="btn btn-secondary">
-          ← Cancelar
-        </a>
-      </div>
-    </form>
-  </div>
-
-</div>
-
-<style>
-  input[type="text"], input[type="number"], input[type="datetime-local"],
-  select, textarea {
-    width: 100%; box-sizing: border-box;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; padding: .6rem .8rem;
-    color: var(--gray-100); font-family: inherit; font-size: .9rem;
-  }
-  input:focus, select:focus, textarea:focus {
-    outline: none; border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(91,94,244,0.15);
-  }
-</style>
 {% endblock %}

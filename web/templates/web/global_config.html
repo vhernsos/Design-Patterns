@@ -1,93 +1,13 @@
 {% extends 'web/base.html' %}
-{% block title %}Configuración Global{% endblock %}
 {% block content %}
 
-<div class="page-header">
-  <div>
-    <h1 class="section-title">⚙ Configuración Global</h1>
-    <p class="section-subtitle">Gestiona la configuración del sistema mediante el patrón Singleton</p>
-  </div>
-</div>
+<h2>⚙ Configuración Global</h2>
+<p>Instancia Singleton: <code>{{ singleton }}</code></p>
 
-<div class="singleton-badge">
-  🔵 Instancia Singleton Activa &nbsp;·&nbsp; <code style="font-size:.75rem;">{{ singleton }}</code>
-</div>
-
-<form method="post">
+<form method="post" class="card p-4 shadow">
   {% csrf_token %}
-  <div class="config-grid">
-
-    <div class="config-card">
-      <span class="config-card-icon">💱</span>
-      <div class="config-card-title">Moneda Predeterminada</div>
-      <div class="config-card-desc">La moneda utilizada en todos los cálculos de eventos</div>
-      <label class="form-label">{{ form.moneda.label }}</label>
-      <input type="text" name="moneda" class="form-control"
-             value="{{ form.moneda.value|default:'USD' }}">
-      {% if form.moneda.errors %}
-        <p class="form-error">{{ form.moneda.errors|join:", " }}</p>
-      {% endif %}
-    </div>
-
-    <div class="config-card">
-      <span class="config-card-icon">🧾</span>
-      <div class="config-card-title">Porcentaje de Impuestos</div>
-      <div class="config-card-desc">Aplicado a todos los presupuestos y facturas de eventos</div>
-      <label class="form-label">{{ form.porcentaje_impuestos.label }}</label>
-      <input type="number" name="porcentaje_impuestos" class="form-control"
-             step="0.01" value="{{ form.porcentaje_impuestos.value|default:'16.00' }}">
-      {% if form.porcentaje_impuestos.errors %}
-        <p class="form-error">{{ form.porcentaje_impuestos.errors|join:", " }}</p>
-      {% endif %}
-    </div>
-
-    <div class="config-card">
-      <span class="config-card-icon">👥</span>
-      <div class="config-card-title">Límite de Asistentes</div>
-      <div class="config-card-desc">Máximo de asistentes permitidos por evento en todo el sistema</div>
-      <label class="form-label">{{ form.limite_asistentes.label }}</label>
-      <input type="number" name="limite_asistentes" class="form-control"
-             value="{{ form.limite_asistentes.value|default:'5000' }}">
-      {% if form.limite_asistentes.errors %}
-        <p class="form-error">{{ form.limite_asistentes.errors|join:", " }}</p>
-      {% endif %}
-    </div>
-
-    <div class="config-card">
-      <span class="config-card-icon">🔔</span>
-      <div class="config-card-title">Notificaciones</div>
-      <div class="config-card-desc">Activar o desactivar las notificaciones del sistema</div>
-      <div class="toggle-group" style="margin-top:.75rem;">
-        <span class="toggle-label">{{ form.notificaciones_activas.label }}</span>
-        <label class="toggle-switch">
-          <input type="checkbox" name="notificaciones_activas"
-            {% if form.notificaciones_activas.value %}checked{% endif %}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="config-card">
-      <span class="config-card-icon">🛠</span>
-      <div class="config-card-title">Modo de Mantenimiento</div>
-      <div class="config-card-desc">
-        Cuando está activado, el sistema muestra un aviso de mantenimiento
-      </div>
-      <div class="toggle-group" style="margin-top:.75rem;">
-        <span class="toggle-label">{{ form.modo_mantenimiento.label }}</span>
-        <label class="toggle-switch">
-          <input type="checkbox" name="modo_mantenimiento"
-            {% if form.modo_mantenimiento.value %}checked{% endif %}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-  </div>
-
-  <div style="margin-top:2rem;">
-    <button type="submit" class="btn btn-primary">💾 Guardar Configuración</button>
-  </div>
+  {{ form.as_p }}
+  <button class="btn btn-primary">Guardar</button>
 </form>
 
 {% endblock %}

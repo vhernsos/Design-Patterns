@@ -1,26 +1,14 @@
 {% extends 'web/base.html' %}
-{% block title %}Eliminar Evento{% endblock %}
 {% block content %}
 
-<div class="delete-page">
-  <div class="delete-card">
-    <span class="delete-icon">⚠️</span>
-    <h2 class="delete-title">¿Eliminar Evento?</h2>
-    <p class="delete-message">
-      Estás a punto de eliminar permanentemente<br>
-      <strong style="color:var(--white);">{{ evento.nombre }}</strong><br>
-      Esta acción <strong style="color:var(--red);">no se puede deshacer</strong>.
-    </p>
-    <form method="post">
-      {% csrf_token %}
-      <div class="delete-actions">
-        <button type="submit" class="btn btn-danger">🗑 Sí, Eliminar</button>
-        <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary">
-          ← Mantener Evento
-        </a>
-      </div>
-    </form>
-  </div>
+<div class="card p-4 shadow" style="max-width:500px;margin:0 auto;">
+  <h2>¿Eliminar Evento?</h2>
+  <p>Estás a punto de eliminar permanentemente <strong>{{ evento.nombre }}</strong>. Esta acción <strong>no se puede deshacer</strong>.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
+    <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary ms-2">Cancelar</a>
+  </form>
 </div>
 
 {% endblock %}

@@ -1,78 +1,37 @@
 {% extends 'web/base.html' %}
-{% block title %}Procesar Pago — {{ evento.nombre }}{% endblock %}
 {% block content %}
 
-<div style="max-width:680px;margin:0 auto;">
-  <div style="margin-bottom:1.5rem;">
-    <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary btn-sm">← Volver al Evento</a>
-  </div>
+<h2>Procesar Pago — {{ evento.nombre }}</h2>
+<p><a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary btn-sm">← Volver al Evento</a></p>
 
-  <div class="card card-elevated">
-    <h2 style="font-size:1.3rem;margin-bottom:1.5rem;color:var(--primary);">
-      💰 Procesar Pago — {{ evento.nombre }}
-    </h2>
-
-    <!-- Monto desglose -->
-    <div style="background:rgba(6,214,160,0.07);border:1px solid rgba(6,214,160,0.2);
-                border-radius:12px;padding:1.2rem;margin-bottom:1.5rem;">
-      <h3 style="font-size:.95rem;color:#059669;margin-bottom:.9rem;">📊 Resumen de Monto</h3>
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,0.07);">
-        <span style="font-size:.9rem;color:var(--gray-400);">{{ evento.nombre }} (base)</span>
-        <span style="font-weight:600;color:var(--gray-100);">${{ evento.presupuesto|floatformat:2 }}</span>
-      </div>
+<div class="card p-4 shadow">
+  <h5>📊 Resumen de Monto</h5>
+  <table class="table table-striped">
+    <tbody>
+      <tr><td>{{ evento.nombre }} (base)</td><td>${{ evento.presupuesto|floatformat:2 }}</td></tr>
       {% for sub in evento.subeventos.all %}
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <span style="font-size:.85rem;color:var(--gray-500);">🔹 {{ sub.nombre }}</span>
-        <span style="font-size:.9rem;color:var(--gray-300);">${{ sub.presupuesto|floatformat:2 }}</span>
-      </div>
+      <tr><td>🔹 {{ sub.nombre }}</td><td>${{ sub.presupuesto|floatformat:2 }}</td></tr>
       {% endfor %}
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.7rem 0 0;margin-top:.3rem;">
-        <span style="font-weight:700;font-size:1rem;color:var(--gray-100);">Total a Pagar</span>
-        <span style="font-weight:700;font-size:1.2rem;color:#059669;">${{ monto_total|floatformat:2 }}</span>
-      </div>
+      <tr><th>Total a Pagar</th><th>${{ monto_total|floatformat:2 }}</th></tr>
+    </tbody>
+  </table>
+
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <h5>🏦 Selecciona tu Pasarela de Pago</h5>
+    {% for p in pasarelas %}
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="radio" name="pasarela_id" value="{{ p.pk }}" id="pasarela_{{ p.pk }}" required>
+      <label class="form-check-label" for="pasarela_{{ p.pk }}">
+        {{ p.icono }} {{ p.nombre }}{% if p.descripcion %} — {{ p.descripcion }}{% endif %}
+      </label>
     </div>
-
-    <!-- Selección de pasarela -->
-    <form method="post">
-      {% csrf_token %}
-      <h3 style="font-size:.95rem;color:var(--gray-300);margin-bottom:1rem;">
-        🏦 Selecciona tu Pasarela de Pago
-      </h3>
-      <div style="display:flex;flex-direction:column;gap:.7rem;margin-bottom:1.5rem;">
-        {% for p in pasarelas %}
-        <label style="display:flex;align-items:center;gap:1rem;
-                      padding:.9rem 1.1rem;background:rgba(255,255,255,0.04);
-                      border:1px solid rgba(255,255,255,0.08);border-radius:10px;
-                      cursor:pointer;transition:border-color .2s;"
-               onmouseover="this.style.borderColor='rgba(91,94,244,0.4)'"
-               onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">
-          <input type="radio" name="pasarela_id" value="{{ p.pk }}"
-                 style="accent-color:var(--primary);width:18px;height:18px;" required>
-          <span style="font-size:1.4rem;">{{ p.icono }}</span>
-          <div>
-            <div style="font-weight:600;color:var(--gray-100);">{{ p.nombre }}</div>
-            {% if p.descripcion %}
-            <div style="font-size:.8rem;color:var(--gray-500);">{{ p.descripcion }}</div>
-            {% endif %}
-          </div>
-        </label>
-        {% empty %}
-        <p style="color:var(--gray-500);">No hay pasarelas disponibles.</p>
-        {% endfor %}
-      </div>
-
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;font-size:1rem;padding:.9rem;">
-        🚀 Procesar Pago — ${{ monto_total|floatformat:2 }}
-      </button>
-    </form>
-
-    <p style="margin-top:1rem;font-size:.78rem;color:var(--gray-600);text-align:center;">
-      🔒 Pago simulado — ningún cargo real será realizado
-    </p>
-  </div>
+    {% empty %}
+    <p>No hay pasarelas disponibles.</p>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary mt-3">🚀 Procesar Pago — ${{ monto_total|floatformat:2 }}</button>
+  </form>
+  <p class="text-muted mt-2"><small>🔒 Pago simulado — ningún cargo real será realizado</small></p>
 </div>
 
 {% endblock %}

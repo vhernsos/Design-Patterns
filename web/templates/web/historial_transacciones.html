@@ -1,121 +1,66 @@
 {% extends 'web/base.html' %}
-{% block title %}Historial de Transacciones{% endblock %}
 {% block content %}
 
-<div style="display:flex;align-items:center;justify-content:space-between;
-            margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
-  <div>
-    <h1 style="font-size:1.5rem;font-weight:700;margin:0;">📋 Historial de Transacciones</h1>
-    <p style="color:var(--gray-500);font-size:.85rem;margin:.3rem 0 0;">
-      Registro de todos los pagos realizados
-    </p>
-  </div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>📋 Historial de Transacciones</h2>
   <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-sm">← Panel de Control</a>
 </div>
 
-<!-- Filtros -->
-<div class="card" style="margin-bottom:1.5rem;padding:1rem 1.2rem;">
-  <form method="get" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
-    <div style="flex:1;min-width:180px;">
-      <label style="display:block;font-size:.8rem;color:var(--gray-400);margin-bottom:.3rem;">
-        Filtrar por evento
-      </label>
-      <input type="text" name="evento" value="{{ evento_filtro }}"
-             placeholder="Nombre del evento…"
-             style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-                    border-radius:8px;padding:.5rem .75rem;color:var(--gray-100);font-size:.9rem;">
-    </div>
-    <div style="min-width:160px;">
-      <label style="display:block;font-size:.8rem;color:var(--gray-400);margin-bottom:.3rem;">
-        Estado
-      </label>
-      <select name="estado"
-              style="width:100%;background:#1a1a2e;border:1px solid rgba(255,255,255,0.1);
-                     border-radius:8px;padding:.5rem .75rem;color:var(--gray-100);font-size:.9rem;">
-        <option value="">Todos</option>
-        <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>Pendiente</option>
-        <option value="procesada" {% if estado_filtro == 'procesada' %}selected{% endif %}>Procesada</option>
-        <option value="fallida"   {% if estado_filtro == 'fallida'   %}selected{% endif %}>Fallida</option>
-      </select>
-    </div>
-    <div style="display:flex;gap:.5rem;">
-      <button type="submit" class="btn btn-primary btn-sm">🔍 Filtrar</button>
-      <a href="{% url 'historial_transacciones' %}" class="btn btn-secondary btn-sm">✕ Limpiar</a>
-    </div>
-  </form>
-</div>
+<form method="get" class="mb-3 d-flex gap-2 align-items-end flex-wrap">
+  <div>
+    <label class="form-label mb-1">Evento</label>
+    <input type="text" name="evento" value="{{ evento_filtro }}" class="form-control" placeholder="Nombre del evento…">
+  </div>
+  <div>
+    <label class="form-label mb-1">Estado</label>
+    <select name="estado" class="form-control">
+      <option value="">Todos</option>
+      <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>Pendiente</option>
+      <option value="procesada" {% if estado_filtro == 'procesada' %}selected{% endif %}>Procesada</option>
+      <option value="fallida"   {% if estado_filtro == 'fallida'   %}selected{% endif %}>Fallida</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+  <a href="{% url 'historial_transacciones' %}" class="btn btn-secondary">Limpiar</a>
+</form>
 
-<!-- Tabla de transacciones -->
 {% if transacciones %}
-<div class="card card-elevated" style="overflow-x:auto;">
-  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
-    <thead>
-      <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
-        <th style="text-align:left;padding:.7rem .9rem;color:var(--gray-400);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;">Evento</th>
-        <th style="text-align:left;padding:.7rem .9rem;color:var(--gray-400);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;">Pasarela</th>
-        <th style="text-align:right;padding:.7rem .9rem;color:var(--gray-400);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;">Monto</th>
-        <th style="text-align:center;padding:.7rem .9rem;color:var(--gray-400);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;">Estado</th>
-        <th style="text-align:left;padding:.7rem .9rem;color:var(--gray-400);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;">Fecha</th>
-        <th style="text-align:left;padding:.7rem .9rem;color:var(--gray-400);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;">Referencia</th>
-        <th style="text-align:center;padding:.7rem .9rem;color:var(--gray-400);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;">Detalle</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for t in transacciones %}
-      <tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:background .15s;"
-          onmouseover="this.style.background='rgba(255,255,255,0.03)'"
-          onmouseout="this.style.background='transparent'">
-        <td style="padding:.7rem .9rem;">
-          <a href="{% url 'event_detail' t.evento.pk %}"
-             style="color:var(--gray-100);font-weight:600;text-decoration:none;">
-            {{ t.evento.nombre }}
-          </a>
-        </td>
-        <td style="padding:.7rem .9rem;">
-          <span style="display:flex;align-items:center;gap:.4rem;">
-            {% if t.pasarela %}{{ t.pasarela.icono }} {{ t.pasarela.nombre }}{% else %}—{% endif %}
-          </span>
-        </td>
-        <td style="padding:.7rem .9rem;text-align:right;font-weight:700;color:#059669;">
-          ${{ t.monto|floatformat:2 }}
-        </td>
-        <td style="padding:.7rem .9rem;text-align:center;">
-          {% if t.estado == 'procesada' %}
-          <span class="badge badge-green">✅ Procesada</span>
-          {% elif t.estado == 'pendiente' %}
-          <span class="badge badge-orange">⏳ Pendiente</span>
-          {% else %}
-          <span class="badge badge-red">❌ Fallida</span>
-          {% endif %}
-        </td>
-        <td style="padding:.7rem .9rem;font-size:.85rem;color:var(--gray-400);">
-          {{ t.fecha|date:"d M Y · H:i" }}
-        </td>
-        <td style="padding:.7rem .9rem;font-size:.8rem;color:var(--gray-500);font-family:monospace;">
-          {{ t.referencia_externa|truncatechars:25 }}
-        </td>
-        <td style="padding:.7rem .9rem;text-align:center;">
-          <a href="{% url 'detalle_transaccion' t.pk %}" class="btn btn-secondary btn-sm"
-             style="font-size:.75rem;padding:.3rem .6rem;">Ver</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Evento</th>
+      <th>Pasarela</th>
+      <th>Monto</th>
+      <th>Estado</th>
+      <th>Fecha</th>
+      <th>Referencia</th>
+      <th>Detalle</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in transacciones %}
+    <tr>
+      <td><a href="{% url 'event_detail' t.evento.pk %}">{{ t.evento.nombre }}</a></td>
+      <td>{% if t.pasarela %}{{ t.pasarela.icono }} {{ t.pasarela.nombre }}{% else %}—{% endif %}</td>
+      <td>${{ t.monto|floatformat:2 }}</td>
+      <td>
+        {% if t.estado == 'procesada' %}<span class="badge bg-success">Procesada</span>
+        {% elif t.estado == 'pendiente' %}<span class="badge bg-warning text-dark">Pendiente</span>
+        {% else %}<span class="badge bg-danger">Fallida</span>{% endif %}
+      </td>
+      <td>{{ t.fecha|date:"d/m/Y H:i" }}</td>
+      <td>{{ t.referencia_externa|truncatechars:25 }}</td>
+      <td><a href="{% url 'detalle_transaccion' t.pk %}" class="btn btn-primary btn-sm">Ver</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% else %}
-<div class="card" style="text-align:center;padding:3rem 2rem;">
-  <div style="font-size:3rem;margin-bottom:1rem;">💳</div>
-  <h3 style="color:var(--gray-300);margin-bottom:.5rem;">Sin transacciones</h3>
-  <p style="color:var(--gray-500);font-size:.9rem;margin-bottom:1.5rem;">
-    {% if estado_filtro or evento_filtro %}
-    No se encontraron transacciones con los filtros aplicados.
-    {% else %}
-    Aún no has realizado ningún pago.
-    {% endif %}
-  </p>
-  <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm">Ver Eventos</a>
-</div>
+<p>
+  {% if estado_filtro or evento_filtro %}No se encontraron transacciones con los filtros aplicados.
+  {% else %}Aún no has realizado ningún pago.{% endif %}
+</p>
+<a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm">Ver Eventos</a>
 {% endif %}
 
 {% endblock %}

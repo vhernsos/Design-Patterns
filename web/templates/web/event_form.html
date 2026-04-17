@@ -1,145 +1,18 @@
 {% extends 'web/base.html' %}
-{% block title %}{{ title }}{% endblock %}
 {% block content %}
 
-<div class="page-header">
-  <div>
-    <h1 class="section-title">{{ title }}</h1>
-    <p class="section-subtitle">Completa los detalles para configurar tu evento</p>
-  </div>
-</div>
+<h1>{{ title }}</h1>
 
-<div class="form-page-grid">
-
-  <!-- Image panel: portrait-friendly photo, no stretching -->
-  <div class="form-image-panel">
-    <img
-      src="https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=800&q=80"
-      alt="Event setup">
-    <div class="form-image-label">
-      <h3>Crea Algo Memorable</h3>
-      <p>Todo gran evento comienza con los detalles correctos.</p>
-    </div>
-  </div>
-
-  <!-- Form body -->
-  <div class="form-body">
-    <form method="post">
-      {% csrf_token %}
-
-      <div class="form-section-title">📌 Detalles del Evento</div>
-
-      {% for field in form %}
-      <div class="form-group">
-        {% if field.field.widget.input_type == 'checkbox' %}
-          <div class="toggle-group">
-            <span class="toggle-label">{{ field.label }}</span>
-            <label class="toggle-switch">
-              {{ field }}
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        {% else %}
-          <label class="form-label">{{ field.label }}</label>
-          {{ field }}
-        {% endif %}
-        {% if field.errors %}
-          <p class="form-error">{{ field.errors|join:", " }}</p>
-        {% endif %}
-      </div>
-      {% endfor %}
-
-      <div class="form-section-title" style="margin-top:1.5rem;">⚙ Servicios</div>
-
-      {% for field in config_form %}
-      <div class="form-group">
-        {% if field.field.widget.input_type == 'checkbox' %}
-          <div class="toggle-group">
-            <span class="toggle-label">{{ field.label }}</span>
-            <label class="toggle-switch">
-              {{ field }}
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        {% else %}
-          <label class="form-label">{{ field.label }}</label>
-          {{ field }}
-        {% endif %}
-        {% if field.errors %}
-          <p class="form-error">{{ field.errors|join:", " }}</p>
-        {% endif %}
-      </div>
-      {% endfor %}
-
-      <div class="divider"></div>
-      <div style="display:flex;gap:1rem;">
-        <button type="submit" class="btn btn-primary">💾 Guardar Evento</button>
-        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancelar</a>
-      </div>
-    </form>
-  </div>
-</div>
-
-<style>
-  .form-body input[type="text"],
-  .form-body input[type="number"],
-  .form-body input[type="datetime-local"],
-  .form-body select,
-  .form-body textarea {
-    width: 100%;
-    padding: .65rem 1rem;
-    background: #f0f4ff;
-    border: 2px solid rgba(91,94,244,0.15);
-    border-radius: 10px;
-    color: #1e1e2e;
-    font-family: 'Poppins', sans-serif;
-    font-size: .92rem;
-    transition: all 0.3s ease;
-    box-sizing: border-box;
-  }
-  .form-body input:focus,
-  .form-body select:focus,
-  .form-body textarea:focus {
-    outline: none;
-    border-color: #5b5ef4;
-    background: #fff;
-    box-shadow: 0 0 0 4px rgba(91,94,244,0.12);
-  }
-  .form-body input[type="checkbox"] { display: none; }
-  .form-body ul.errorlist { display: none; }
-  .form-body ul {
-    list-style: none;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: .5rem;
-  }
-  .form-body ul li label {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    padding: .5rem .8rem;
-    background: #f0f4ff;
-    border: 2px solid rgba(91,94,244,0.15);
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: .85rem;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0;
-    color: #4a4a6a;
-    transition: all 0.2s ease;
-  }
-  .form-body ul li label:hover {
-    background: rgba(91,94,244,0.08);
-    border-color: #5b5ef4;
-    color: #5b5ef4;
-  }
-  .form-body ul li input[type="checkbox"] {
-    display: inline-block;
-    width: 16px; height: 16px;
-    accent-color: #5b5ef4;
-  }
-</style>
+<form method="post" class="card p-4 shadow">
+    {% csrf_token %}
+    {{ form.as_p }}
+    {% if config_form %}
+    <hr>
+    <h5>Servicios</h5>
+    {{ config_form.as_p }}
+    {% endif %}
+    <button class="btn btn-primary">Guardar</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary ms-2">Cancelar</a>
+</form>
 
 {% endblock %}

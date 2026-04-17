@@ -1,101 +1,48 @@
 {% extends 'web/base.html' %}
-{% block title %}Proveedores – {{ evento.nombre }}{% endblock %}
 {% block content %}
 
-<div style="max-width:860px;margin:0 auto;">
+<h2>🔌 Proveedores Externos — {{ evento.nombre }}</h2>
+<p><a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary btn-sm">← Volver al Evento</a></p>
 
-  <!-- Breadcrumb -->
-  <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--gray-400);">
-    <a href="{% url 'dashboard' %}" style="color:var(--gray-400);">Panel</a>
-    <span>›</span>
-    <a href="{% url 'event_detail' evento.pk %}" style="color:var(--gray-400);">{{ evento.nombre }}</a>
-    <span>›</span>
-    <span style="color:var(--gray-200);">Proveedores de Servicio</span>
-  </div>
-
-  <!-- Header -->
-  <div class="card card-elevated" style="margin-bottom:1.5rem;padding:1.5rem;">
-    <div style="display:flex;align-items:center;gap:.75rem;">
-      <span style="font-size:1.8rem;">🔌</span>
-      <div>
-        <h2 style="margin:0;font-size:1.3rem;">Proveedores Externos</h2>
-        <p style="margin:0;color:var(--gray-400);font-size:.85rem;">
-          Patrón <strong style="color:var(--orange);">Adapter</strong> —
-          Interfaz uniforme para APIs externas de Catering, Pago y Streaming
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Contracted services -->
-  {% if contratos %}
-  <div class="card card-elevated" style="margin-bottom:1.5rem;">
-    <h3 style="margin-bottom:1rem;font-size:1rem;color:var(--purple-light);">
-      📋 Servicios Contratados
-    </h3>
-    <div style="display:flex;flex-direction:column;gap:.6rem;">
+{% if contratos %}
+<div class="card p-4 shadow mb-3">
+  <h5>📋 Servicios Contratados</h5>
+  <table class="table table-striped">
+    <thead><tr><th>Proveedor</th><th>Tipo</th><th>Estado</th></tr></thead>
+    <tbody>
       {% for contrato in contratos %}
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.7rem 1rem;background:rgba(255,255,255,0.04);
-                  border-radius:8px;border:1px solid rgba(255,255,255,0.07);">
-        <div>
-          <span style="font-weight:600;color:var(--gray-100);">{{ contrato.proveedor.nombre }}</span>
-          <span class="badge badge-blue" style="margin-left:.5rem;">{{ contrato.proveedor.get_tipo_display }}</span>
-        </div>
-        <span class="badge
-          {% if contrato.estado == 'confirmado' %}badge-green
-          {% elif contrato.estado == 'completado' %}badge-green
-          {% elif contrato.estado == 'cancelado' %}badge-red
-          {% else %}badge-orange{% endif %}">
-          {{ contrato.get_estado_display }}
-        </span>
-      </div>
+      <tr>
+        <td>{{ contrato.proveedor.nombre }}</td>
+        <td>{{ contrato.proveedor.get_tipo_display }}</td>
+        <td>{{ contrato.get_estado_display }}</td>
+      </tr>
       {% endfor %}
-    </div>
-  </div>
-  {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
-  <!-- Available providers -->
-  <div class="card">
-    <h3 style="margin-bottom:1rem;font-size:1rem;color:var(--purple-light);">
-      🏪 Proveedores Disponibles
-    </h3>
-    {% if proveedores %}
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
-      {% for proveedor in proveedores %}
-      <div style="padding:1rem;background:rgba(255,255,255,0.04);
-                  border-radius:10px;border:1px solid rgba(255,255,255,0.08);">
-        <div style="margin-bottom:.5rem;">
-          <span style="font-weight:600;color:var(--gray-100);">{{ proveedor.nombre }}</span>
-          <span class="badge badge-blue" style="margin-left:.4rem;font-size:.72rem;">
-            {{ proveedor.get_tipo_display }}
-          </span>
-        </div>
-        {% if proveedor.descripcion %}
-        <p style="font-size:.82rem;color:var(--gray-400);margin:.3rem 0 .75rem;">
-          {{ proveedor.descripcion }}
-        </p>
-        {% endif %}
-        <form method="post"
-              action="{% url 'contratar_servicio' evento.pk proveedor.pk %}">
+<div class="card p-4 shadow">
+  <h5>🏪 Proveedores Disponibles</h5>
+  {% if proveedores %}
+  <div class="row g-3">
+    {% for proveedor in proveedores %}
+    <div class="col-md-4">
+      <div class="card p-3">
+        <strong>{{ proveedor.nombre }}</strong>
+        <span class="badge bg-primary ms-1">{{ proveedor.get_tipo_display }}</span>
+        {% if proveedor.descripcion %}<p class="text-muted small mt-1">{{ proveedor.descripcion }}</p>{% endif %}
+        <form method="post" action="{% url 'contratar_servicio' evento.pk proveedor.pk %}" class="mt-2">
           {% csrf_token %}
-          <button type="submit" class="btn btn-primary btn-sm"
-                  style="width:100%;">
-            🔌 Contratar vía Adapter
-          </button>
+          <button type="submit" class="btn btn-primary btn-sm w-100">Contratar</button>
         </form>
       </div>
-      {% endfor %}
     </div>
-    {% else %}
-    <p style="color:var(--gray-500);font-size:.9rem;">
-      No hay proveedores activos. Agrega proveedores desde el panel de administración.
-    </p>
-    {% endif %}
+    {% endfor %}
   </div>
-
-  <div style="margin-top:1rem;">
-    <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary">← Volver al Evento</a>
-  </div>
+  {% else %}
+  <p>No hay proveedores activos.</p>
+  {% endif %}
 </div>
+
 {% endblock %}

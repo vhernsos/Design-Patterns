@@ -1,125 +1,61 @@
 {% extends 'web/base.html' %}
-{% block title %}Panel de Control — EventManager{% endblock %}
 {% block content %}
 
-<!-- Hero -->
-<div class="hero-banner">
-  <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1920&q=80"
-       alt="Events hero">
-  <div class="hero-overlay"></div>
-  <div class="hero-content">
-    <h1 class="hero-title">Tus Eventos</h1>
-    <p class="hero-subtitle">Gestiona y construye tus eventos en un solo lugar</p>
-  </div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Todos los Eventos</h2>
+  <a href="{% url 'build_event' %}" class="btn btn-success">Nuevo Evento</a>
 </div>
 
-<!-- Stats -->
-<div class="stats-bar">
-  <div class="stat-card">
-    <div class="stat-number">{{ eventos.count }}</div>
-    <div class="stat-label">Eventos Totales</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-number">{{ eventos|length }}</div>
-    <div class="stat-label">Mostrando Ahora</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-number">{{ tipos.count }}</div>
-    <div class="stat-label">Tipos de Eventos</div>
-  </div>
-</div>
-
-<!-- Page header -->
-<div class="page-header">
+<form method="get" class="mb-3 d-flex gap-2 align-items-end flex-wrap">
   <div>
-    <h2 class="section-title">Todos los Eventos</h2>
-    <p class="section-subtitle">Filtra, visualiza y gestiona tu cartera de eventos</p>
+    <label class="form-label mb-1">Tipo</label>
+    <select name="tipo" class="form-control">
+      <option value="">Todos los tipos</option>
+      {% for t in tipos %}
+      <option value="{{ t.pk }}"
+        {% if request.GET.tipo == t.pk|stringformat:"s" %}selected{% endif %}>
+        {{ t.nombre }}
+      </option>
+      {% endfor %}
+    </select>
   </div>
-  <div class="page-header-actions">
-    <a href="{% url 'build_event' %}" class="btn btn-primary">🔨 Construir Evento</a>
+  <div>
+    <label class="form-label mb-1">Fecha</label>
+    <input type="date" name="fecha" class="form-control" value="{{ request.GET.fecha }}">
   </div>
-</div>
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+  <a href="{% url 'dashboard' %}" class="btn btn-secondary">Limpiar</a>
+</form>
 
-<!-- Filters -->
-<div class="filter-bar">
-  <form method="get" style="display:contents;">
-    <div class="filter-group">
-      <span class="filter-label">Tipo</span>
-      <select name="tipo" class="form-control" style="min-width:140px;">
-        <option value="">Todos los tipos</option>
-        {% for t in tipos %}
-        <option value="{{ t.pk }}"
-          {% if request.GET.tipo == t.pk|stringformat:"s" %}selected{% endif %}>
-          {{ t.nombre }}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-group">
-      <span class="filter-label">Fecha</span>
-      <input type="date" name="fecha" class="form-control"
-             value="{{ request.GET.fecha }}" style="min-width:160px;">
-    </div>
-    <button type="submit" class="btn btn-secondary" style="align-self:flex-end;">
-      🔍 Filtrar
-    </button>
-    <a href="{% url 'dashboard' %}" class="btn btn-secondary" style="align-self:flex-end;">
-      ✕ Limpiar
-    </a>
-  </form>
-</div>
-
-<!-- Events grid -->
 {% if eventos %}
-<div class="events-grid">
-  {% for e in eventos %}
-  <div class="event-card">
-    <div class="event-card-header">
-      <div>
-        <a href="{% url 'event_detail' e.pk %}" class="event-card-title">{{ e.nombre }}</a>
-        <div style="margin-top:.4rem;display:flex;gap:.4rem;flex-wrap:wrap;">
-          {% if e.tipo %}
-          <span class="badge badge-blue">{{ e.tipo }}</span>
-          {% endif %}
-          {% if e.es_clon %}
-          <span class="badge badge-purple">🔁 Clon</span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <div class="event-card-meta">
-      <div class="event-meta-item">
-        📅 {{ e.fecha_inicio|date:"M d, Y · H:i" }}
-      </div>
-      {% if e.ubicacion %}
-      <div class="event-meta-item">
-        📍 {{ e.ubicacion }}
-      </div>
-      {% endif %}
-      <div class="organizer-chip">
-        <div class="organizer-avatar">{{ e.organizador.username|first }}</div>
-        {{ e.organizador.username }}
-      </div>
-    </div>
-
-    <div class="event-card-actions">
-      <a href="{% url 'event_detail' e.pk %}"  class="btn btn-secondary btn-sm">👁 Ver</a>
-      <a href="{% url 'event_update' e.pk %}"  class="btn btn-warning btn-sm">✏️ Editar</a>
-      <a href="{% url 'event_delete' e.pk %}"  class="btn btn-danger btn-sm">🗑</a>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for evento in eventos %}
+        <tr>
+            <td>{{ evento.nombre }}</td>
+            <td>{{ evento.tipo }}</td>
+            <td>{{ evento.fecha_inicio|date:"d/m/Y" }}</td>
+            <td>
+              <a href="{% url 'event_detail' evento.pk %}" class="btn btn-primary btn-sm">Ver</a>
+              <a href="{% url 'event_update' evento.pk %}" class="btn btn-warning btn-sm">Editar</a>
+              <a href="{% url 'clone_event' evento.pk %}" class="btn btn-warning btn-sm">Clonar</a>
+              <a href="{% url 'event_delete' evento.pk %}" class="btn btn-danger btn-sm">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% else %}
-<div class="empty-state">
-  <span class="empty-state-icon">📭</span>
-  <p class="empty-state-text">No se encontraron eventos con esos filtros.</p>
-  <div style="display:flex;gap:1rem;justify-content:center;">
-    <a href="{% url 'build_event' %}"  class="btn btn-primary">Construir con el Constructor</a>
-  </div>
-</div>
+<p>No se encontraron eventos con esos filtros.</p>
+<a href="{% url 'build_event' %}" class="btn btn-success">Nuevo Evento</a>
 {% endif %}
 
 {% endblock %}

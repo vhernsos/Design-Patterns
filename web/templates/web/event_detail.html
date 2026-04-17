@@ -1,335 +1,202 @@
 {% extends 'web/base.html' %}
-{% block title %}{{ evento.nombre }}{% endblock %}
 {% block content %}
 
-<!-- Detail hero -->
-<div class="detail-hero">
-  <div>
-    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem;">
-      {% if evento.tipo %}
-      <span class="badge badge-blue">{{ evento.tipo }}</span>
-      {% endif %}
-      {% if evento.es_clon %}
-      <span class="badge badge-purple">🔁 Clon</span>
-      {% endif %}
-      {% if evento.es_compuesto %}
-      <span class="badge badge-green">🌿 Compuesto</span>
-      {% endif %}
-      {% if evento.evento_padre %}
-      <span class="badge badge-orange">🔗 Sub-evento</span>
-      {% endif %}
-    </div>
-    <h1 class="detail-hero-title">{{ evento.nombre }}</h1>
-    <div class="detail-hero-meta">
-      <span class="detail-meta-item">📅 {{ evento.fecha_inicio|date:"M d, Y · H:i" }}</span>
-      <span class="detail-meta-item">🏁 {{ evento.fecha_fin|date:"M d, Y · H:i" }}</span>
-      {% if evento.ubicacion %}
-      <span class="detail-meta-item">📍 {{ evento.ubicacion }}</span>
-      {% endif %}
-      <span class="detail-meta-item">👥 {{ evento.max_asistentes }} máximo de asistentes</span>
-      <span class="detail-meta-item">👤 {{ evento.organizador.username }}</span>
-      {% if evento.presupuesto %}
-      <span class="detail-meta-item">💰 ${{ evento.presupuesto }}</span>
-      {% endif %}
-    </div>
-    {% if evento.descripcion %}
-    <p style="margin-top:1rem;color:rgba(255,255,255,0.65);font-size:.9rem;max-width:600px;">
-      {{ evento.descripcion }}
-    </p>
-    {% endif %}
-  </div>
-  <div class="detail-hero-actions">
-    <a href="{% url 'event_update' evento.pk %}" class="btn btn-warning btn-sm">✏️ Editar</a>
-    <a href="{% url 'clone_event'  evento.pk %}" class="btn btn-success btn-sm">🔁 Clonar</a>
-    <a href="{% url 'event_delete' evento.pk %}" class="btn btn-danger btn-sm">🗑 Eliminar</a>
-    <a href="{% url 'dashboard' %}"              class="btn btn-secondary btn-sm">← Volver</a>
+<div class="mb-3">
+  <h1>{{ evento.nombre }}</h1>
+  <p>
+    {% if evento.tipo %}<span class="badge bg-primary">{{ evento.tipo }}</span>{% endif %}
+    {% if evento.es_clon %}<span class="badge bg-secondary">Clon</span>{% endif %}
+    {% if evento.es_compuesto %}<span class="badge bg-success">Compuesto</span>{% endif %}
+    {% if evento.evento_padre %}<span class="badge bg-warning text-dark">Sub-evento</span>{% endif %}
+  </p>
+  <p>
+    📅 {{ evento.fecha_inicio|date:"d/m/Y H:i" }} —
+    🏁 {{ evento.fecha_fin|date:"d/m/Y H:i" }}
+    {% if evento.ubicacion %} · 📍 {{ evento.ubicacion }}{% endif %}
+    · 👥 {{ evento.max_asistentes }}
+    {% if evento.presupuesto %} · 💰 ${{ evento.presupuesto }}{% endif %}
+  </p>
+  {% if evento.descripcion %}<p>{{ evento.descripcion }}</p>{% endif %}
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'event_update' evento.pk %}" class="btn btn-warning">Editar</a>
+    <a href="{% url 'clone_event' evento.pk %}" class="btn btn-warning">Clonar</a>
+    <a href="{% url 'event_delete' evento.pk %}" class="btn btn-danger">Eliminar</a>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">← Volver</a>
   </div>
 </div>
 
-<div class="two-col">
+<div class="row g-3">
   <!-- Services -->
-  <div class="card card-elevated">
-    <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--purple-light);">
-      ⚙ Configuración de Servicios
-    </h3>
-    {% if evento.configuracion %}
-    {% with c=evento.configuracion %}
-    <div class="services-grid">
-      <div class="service-chip {% if c.tiene_catering %}active{% else %}inactive{% endif %}">
-        <span class="chip-icon">🍽️</span>Catering
-      </div>
-      <div class="service-chip {% if c.tiene_escenario %}active{% else %}inactive{% endif %}">
-        <span class="chip-icon">🎭</span>Escenario
-      </div>
-      <div class="service-chip {% if c.tiene_iluminacion %}active{% else %}inactive{% endif %}">
-        <span class="chip-icon">💡</span>Iluminación
-      </div>
-      <div class="service-chip {% if c.tiene_seguridad %}active{% else %}inactive{% endif %}">
-        <span class="chip-icon">🔒</span>Seguridad
-      </div>
-      <div class="service-chip {% if c.tiene_streaming %}active{% else %}inactive{% endif %}">
-        <span class="chip-icon">📡</span>Transmisión
-      </div>
-      <div class="service-chip {% if c.tiene_decoracion %}active{% else %}inactive{% endif %}">
-        <span class="chip-icon">🎨</span>Decoración
-      </div>
+  <div class="col-md-6">
+    <div class="card p-4 shadow">
+      <h5>⚙ Configuración de Servicios</h5>
+      {% if evento.configuracion %}
+      {% with c=evento.configuracion %}
+      <ul class="list-unstyled">
+        <li>🍽️ Catering: {% if c.tiene_catering %}✅{% else %}❌{% endif %}</li>
+        <li>🎭 Escenario: {% if c.tiene_escenario %}✅{% else %}❌{% endif %}</li>
+        <li>💡 Iluminación: {% if c.tiene_iluminacion %}✅{% else %}❌{% endif %}</li>
+        <li>🔒 Seguridad: {% if c.tiene_seguridad %}✅{% else %}❌{% endif %}</li>
+        <li>📡 Transmisión: {% if c.tiene_streaming %}✅{% else %}❌{% endif %}</li>
+        <li>🎨 Decoración: {% if c.tiene_decoracion %}✅{% else %}❌{% endif %}</li>
+      </ul>
+      {% if c.notas_adicionales %}<p><strong>Notas:</strong> {{ c.notas_adicionales }}</p>{% endif %}
+      {% endwith %}
+      {% else %}
+      <p>Sin configuración disponible.</p>
+      {% endif %}
     </div>
-    {% if c.notas_adicionales %}
-    <div class="divider"></div>
-    <p style="font-size:.85rem;color:var(--gray-400);">
-      <strong style="color:var(--gray-200);">Notas:</strong> {{ c.notas_adicionales }}
-    </p>
-    {% endif %}
-    {% endwith %}
-    {% else %}
-    <p style="color:var(--gray-600);font-size:.9rem;">Sin configuración disponible.</p>
-    {% endif %}
   </div>
 
-  <!-- Contracted services -->
   {% if evento.servicios.all %}
-  <div class="card card-elevated">
-    <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--purple-light);">
-      🛠 Servicios Contratados
-    </h3>
-    <div style="display:flex;flex-direction:column;gap:.6rem;">
-      {% for s in evento.servicios.all %}
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.6rem .8rem;background:rgba(255,255,255,0.04);
-                  border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
-        <div>
-          <span style="font-size:.9rem;font-weight:600;">{{ s.nombre }}</span>
-          <span class="badge badge-blue" style="margin-left:.5rem;">
-            {{ s.get_categoria_display }}
-          </span>
-        </div>
-        <span style="color:var(--green);font-weight:700;font-size:.9rem;">
-          ${{ s.precio }}
-        </span>
-      </div>
-      {% endfor %}
+  <div class="col-md-6">
+    <div class="card p-4 shadow">
+      <h5>🛠 Servicios Contratados</h5>
+      <table class="table table-striped">
+        <thead><tr><th>Nombre</th><th>Categoría</th><th>Precio</th></tr></thead>
+        <tbody>
+          {% for s in evento.servicios.all %}
+          <tr>
+            <td>{{ s.nombre }}</td>
+            <td>{{ s.get_categoria_display }}</td>
+            <td>${{ s.precio }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
   {% endif %}
 
-  <!-- Clone history -->
   {% if evento.clones.all %}
-  <div class="card card-elevated">
-    <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--purple-light);">
-      🔁 Clones de Este Evento
-    </h3>
-    <div class="timeline">
-      {% for c in evento.clones.all %}
-      <div class="timeline-item">
-        <div class="timeline-dot">🔁</div>
-        <div class="timeline-content">
-          <a href="{% url 'event_detail' c.pk %}" class="timeline-title">{{ c.nombre }}</a>
-          <div class="timeline-date">{{ c.fecha_inicio|date:"M d, Y" }}</div>
-        </div>
-      </div>
-      {% endfor %}
+  <div class="col-md-6">
+    <div class="card p-4 shadow">
+      <h5>🔁 Clones de Este Evento</h5>
+      <ul class="list-unstyled">
+        {% for c in evento.clones.all %}
+        <li><a href="{% url 'event_detail' c.pk %}">{{ c.nombre }}</a> — {{ c.fecha_inicio|date:"d/m/Y" }}</li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
   {% endif %}
 
-  <!-- Original event -->
   {% if evento.evento_original %}
-  <div class="card" style="background:rgba(245,158,11,0.07);
-       border-color:rgba(245,158,11,0.25);">
-    <h3 style="margin-bottom:.75rem;font-size:1rem;color:var(--orange);">
-      🔗 Evento Original
-    </h3>
-    <p style="font-size:.9rem;color:var(--gray-400);">
-      Este evento es un clon de
-      <a href="{% url 'event_detail' evento.evento_original.pk %}"
-         style="color:var(--orange);font-weight:600;">
-        {{ evento.evento_original.nombre }}
-      </a>
-    </p>
+  <div class="col-md-6">
+    <div class="card p-4 shadow">
+      <h5>🔗 Evento Original</h5>
+      <p>Este evento es un clon de
+        <a href="{% url 'event_detail' evento.evento_original.pk %}">{{ evento.evento_original.nombre }}</a>
+      </p>
+    </div>
   </div>
   {% endif %}
 </div>
 
-<!-- ── COMPOSITE: Sub-events section ─────────────────────────────────────── -->
-<div class="card card-elevated" style="margin-top:1.5rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;
-              margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
-    <h3 style="margin:0;font-size:1rem;color:var(--primary);">
-      🌿 Composite — Sub-eventos
-    </h3>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+<!-- Composite: Sub-events -->
+<div class="card p-4 shadow mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">🌿 Composite — Sub-eventos</h5>
+    <div class="d-flex gap-2">
       {% if evento.es_compuesto %}
-      <span style="font-size:.8rem;color:var(--gray-400);">
-        💰 Total: ${{ evento.calcular_presupuesto_total|floatformat:2 }} &nbsp;
+      <small class="text-muted align-self-center">
+        💰 ${{ evento.calcular_presupuesto_total|floatformat:2 }} &nbsp;
         ⏱ {{ evento.calcular_duracion_total }}h &nbsp;
         👥 {{ evento.obtener_capacidad_maxima }}
-      </span>
+      </small>
       {% endif %}
-      <a href="{% url 'agregar_subevento' evento.pk %}" class="btn btn-primary btn-sm">
-        ➕ Añadir Sub-evento
-      </a>
+      <a href="{% url 'agregar_subevento' evento.pk %}" class="btn btn-success btn-sm">➕ Añadir Sub-evento</a>
     </div>
   </div>
 
   {% if evento.evento_padre %}
-  <div style="margin-bottom:.75rem;padding:.5rem .8rem;
-              background:rgba(245,158,11,0.07);border-radius:8px;font-size:.85rem;
-              color:var(--gray-300);">
-    📌 Evento padre:
-    <a href="{% url 'event_detail' evento.evento_padre.pk %}"
-       style="color:var(--orange);font-weight:600;">
-      {{ evento.evento_padre.nombre }}
-    </a>
-  </div>
+  <p>📌 Evento padre:
+    <a href="{% url 'event_detail' evento.evento_padre.pk %}">{{ evento.evento_padre.nombre }}</a>
+  </p>
   {% endif %}
 
   {% if evento.subeventos.all %}
-  <div style="display:flex;flex-direction:column;gap:.6rem;">
-    {% for sub in evento.subeventos.all %}
-    <div style="display:flex;align-items:center;gap:.75rem;
-                padding:.7rem 1rem;background:rgba(255,255,255,0.04);
-                border-radius:8px;border:1px solid rgba(91,94,244,0.15);">
-      <span style="font-size:1rem;">🔹</span>
-      <div style="flex:1;">
-        <a href="{% url 'event_detail' sub.pk %}"
-           style="font-weight:600;color:var(--gray-100);text-decoration:none;">
-          {{ sub.nombre }}
-        </a>
-        <span style="font-size:.8rem;color:var(--gray-500);margin-left:.5rem;">
-          {{ sub.fecha_inicio|date:"M d, Y" }} · 👥 {{ sub.max_asistentes }}
-          {% if sub.presupuesto %} · 💰 ${{ sub.presupuesto }}{% endif %}
-        </span>
-      </div>
-      <form method="post"
-            action="{% url 'eliminar_subevento' evento.pk sub.pk %}"
-            style="margin:0;"
-            onsubmit="return confirm('¿Eliminar sub-evento «{{ sub.nombre }}»?');">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-danger btn-sm">✕</button>
-      </form>
-      <a href="{% url 'editar_subevento' evento.pk sub.pk %}" class="btn btn-warning btn-sm">✏️</a>
-    </div>
-    {% endfor %}
-  </div>
+  <table class="table table-striped">
+    <thead>
+      <tr><th>Nombre</th><th>Fecha</th><th>Asistentes</th><th>Presupuesto</th><th>Acciones</th></tr>
+    </thead>
+    <tbody>
+      {% for sub in evento.subeventos.all %}
+      <tr>
+        <td><a href="{% url 'event_detail' sub.pk %}">{{ sub.nombre }}</a></td>
+        <td>{{ sub.fecha_inicio|date:"d/m/Y" }}</td>
+        <td>{{ sub.max_asistentes }}</td>
+        <td>{% if sub.presupuesto %}${{ sub.presupuesto }}{% endif %}</td>
+        <td class="d-flex gap-1">
+          <a href="{% url 'editar_subevento' evento.pk sub.pk %}" class="btn btn-warning btn-sm">Editar</a>
+          <form method="post" action="{% url 'eliminar_subevento' evento.pk sub.pk %}" class="m-0"
+                onsubmit="return confirm('¿Eliminar sub-evento «{{ sub.nombre }}»?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% else %}
-  <p style="color:var(--gray-500);font-size:.9rem;margin:0;">
-    Sin sub-eventos. Haz clic en <strong>➕ Añadir Sub-evento</strong> para crear una estructura jerárquica.
-  </p>
+  <p>Sin sub-eventos. Haz clic en <strong>➕ Añadir Sub-evento</strong> para crear una estructura jerárquica.</p>
   {% endif %}
 </div>
 
-<!-- ── BRIDGE: Reports section ───────────────────────────────────────────── -->
-<div class="card card-elevated" style="margin-top:1.5rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;
-              margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
-    <h3 style="margin:0;font-size:1rem;color:var(--purple-light);">
-      📊 Bridge — Reportes del Evento
-    </h3>
-    <a href="{% url 'generar_pdf' evento.pk %}" class="btn btn-primary btn-sm">
-      ⬇ Descargar PDF Completo
-    </a>
+<!-- Bridge: Reports -->
+<div class="card p-4 shadow mt-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">📊 Bridge — Reportes del Evento</h5>
+    <a href="{% url 'generar_pdf' evento.pk %}" class="btn btn-primary btn-sm">⬇ Descargar PDF</a>
   </div>
-  <p style="margin:0;font-size:.85rem;color:var(--gray-400);">
-    Genera un reporte PDF detallado con estructura jerárquica, servicios, presupuestos y resumen consolidado.
-    También disponible en otros formatos:
-    <a href="{% url 'generar_reporte' evento.pk 'detallado' 'html' %}" style="color:var(--purple-light);margin-left:.25rem;">🌐 HTML</a>
-    <a href="{% url 'generar_reporte' evento.pk 'financiero' 'csv' %}" style="color:var(--green);margin-left:.5rem;">📄 CSV</a>
+  <p class="mt-2 mb-0 text-muted">
+    También disponible en:
+    <a href="{% url 'generar_reporte' evento.pk 'detallado' 'html' %}">🌐 HTML</a>
+    <a href="{% url 'generar_reporte' evento.pk 'financiero' 'csv' %}" class="ms-2">📄 CSV</a>
   </p>
 </div>
 
-<!-- ── ADAPTER: Payment Gateway section ──────────────────────────────────── -->
-<div class="card card-elevated" style="margin-top:1.5rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;
-              margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
-    <h3 style="margin:0;font-size:1rem;color:var(--orange);">
-      💰 Adapter — Pasarelas de Pago
-    </h3>
-  </div>
-
+<!-- Adapter: Payment -->
+<div class="card p-4 shadow mt-3">
+  <h5>💰 Adapter — Pasarelas de Pago</h5>
   {% if evento.pagado %}
-  <!-- Paid state -->
-  <div style="background:rgba(6,214,160,0.07);border:1px solid rgba(6,214,160,0.25);
-              border-radius:12px;padding:1.2rem 1.4rem;">
-    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;">
-      <span style="font-size:1.3rem;">✅</span>
-      <span style="font-weight:700;color:#059669;font-size:1rem;">EVENTO PAGADO</span>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;font-size:.9rem;">
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Monto Pagado</span>
-        <span style="font-weight:700;color:#059669;">${{ evento.monto_pagado|floatformat:2 }}</span>
-      </div>
-      {% with t=evento.transacciones.last %}
-      {% if t %}
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Pasarela</span>
-        <span style="color:var(--gray-200);">{% if t.pasarela %}{{ t.pasarela.icono }} {{ t.pasarela.nombre }}{% endif %}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Referencia</span>
-        <span style="color:var(--gray-300);font-family:monospace;font-size:.85rem;">{{ t.referencia_externa }}</span>
-      </div>
-      {% endif %}
-      {% endwith %}
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Fecha de Pago</span>
-        <span style="color:var(--gray-300);">{{ evento.fecha_pago|date:"d M Y · H:i" }}</span>
-      </div>
-    </div>
+  <div class="alert alert-success">
+    <strong>✅ EVENTO PAGADO</strong><br>
+    Monto: ${{ evento.monto_pagado|floatformat:2 }}<br>
+    {% with t=evento.transacciones.last %}
+    {% if t %}
+    Pasarela: {% if t.pasarela %}{{ t.pasarela.nombre }}{% endif %}<br>
+    Referencia: {{ t.referencia_externa }}<br>
+    {% endif %}
+    {% endwith %}
+    Fecha: {{ evento.fecha_pago|date:"d/m/Y H:i" }}
   </div>
   {% else %}
-  <!-- Unpaid state -->
-  <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);
-              border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;">
-    <div style="font-size:.85rem;color:var(--gray-400);">
-      💡 Monto calculado:
-      <strong style="color:var(--orange);">${{ evento.calcular_monto_total|floatformat:2 }}</strong>
-      (evento + sub-eventos)
-    </div>
-  </div>
-  <a href="{% url 'procesar_pago' evento.pk %}" class="btn btn-primary"
-     style="display:inline-flex;align-items:center;gap:.4rem;">
-    🚀 Pagar Evento
-  </a>
+  <p>💡 Monto calculado: <strong>${{ evento.calcular_monto_total|floatformat:2 }}</strong> (evento + sub-eventos)</p>
+  <a href="{% url 'procesar_pago' evento.pk %}" class="btn btn-primary">🚀 Pagar Evento</a>
   {% endif %}
 </div>
 
-<!-- ── CHAIN OF RESPONSIBILITY: Validation section ───────────────────────── -->
-<div class="card card-elevated" style="margin-top:1.5rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;
-              flex-wrap:wrap;gap:.5rem;">
-    <h3 style="margin:0;font-size:1rem;color:var(--green);">
-      🔗 Chain of Responsibility — Validación
-    </h3>
-    <a href="{% url 'validar_evento' evento.pk %}" class="btn btn-success btn-sm">
-      ✅ Ver Validación Completa
-    </a>
+<!-- Chain of Responsibility: Validation -->
+<div class="card p-4 shadow mt-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">🔗 Chain of Responsibility — Validación</h5>
+    <a href="{% url 'validar_evento' evento.pk %}" class="btn btn-success btn-sm">✅ Ver Validación</a>
   </div>
-  <p style="margin:.6rem 0 0;font-size:.85rem;color:var(--gray-400);">
+  <p class="mt-2 mb-0 text-muted">
     Ejecuta la cadena de validadores: Capacidad → Servicios → Presupuesto → Horarios → Restricciones globales.
   </p>
 </div>
 
-<!-- Singleton ribbon -->
-<div class="singleton-ribbon">
-  <span class="singleton-tag">⚙ Config Singleton</span>
-  <div class="singleton-item">
-    <span class="singleton-item-label">Moneda</span>
-    <span class="singleton-item-value">{{ config.get_moneda }}</span>
-  </div>
-  <div class="singleton-item">
-    <span class="singleton-item-label">Tasa de Impuestos</span>
-    <span class="singleton-item-value">{{ config.get_porcentaje_impuestos }}%</span>
-  </div>
-  <div class="singleton-item">
-    <span class="singleton-item-label">Máx. Asistentes</span>
-    <span class="singleton-item-value">{{ config.get_limite_asistentes }}</span>
-  </div>
-  <div class="singleton-item">
-    <span class="singleton-item-label">Mantenimiento</span>
-    <span class="singleton-item-value">
-      {% if config.get_modo_mantenimiento %}🔴 ON{% else %}🟢 OFF{% endif %}
-    </span>
+<!-- Singleton config -->
+<div class="card p-4 shadow mt-3">
+  <h6>⚙ Config Singleton</h6>
+  <div class="d-flex gap-4 flex-wrap">
+    <span><strong>Moneda:</strong> {{ config.get_moneda }}</span>
+    <span><strong>Impuestos:</strong> {{ config.get_porcentaje_impuestos }}%</span>
+    <span><strong>Máx. Asistentes:</strong> {{ config.get_limite_asistentes }}</span>
+    <span><strong>Mantenimiento:</strong> {% if config.get_modo_mantenimiento %}🔴 ON{% else %}🟢 OFF{% endif %}</span>
   </div>
 </div>
 

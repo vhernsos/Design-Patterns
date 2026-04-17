@@ -1,74 +1,30 @@
 {% extends 'web/base.html' %}
-{% block title %}Transacción — {{ transaccion.referencia_externa }}{% endblock %}
 {% block content %}
 
-<div style="max-width:620px;margin:0 auto;">
-  <div style="margin-bottom:1.5rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>💳 Detalle de Transacción</h2>
+  <div class="d-flex gap-2">
     <a href="{% url 'historial_transacciones' %}" class="btn btn-secondary btn-sm">← Historial</a>
-    <a href="{% url 'event_detail' transaccion.evento.pk %}" class="btn btn-secondary btn-sm">🎉 Ver Evento</a>
+    <a href="{% url 'event_detail' transaccion.evento.pk %}" class="btn btn-secondary btn-sm">Ver Evento</a>
   </div>
+</div>
 
-  <div class="card card-elevated">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;
-                margin-bottom:1.5rem;flex-wrap:wrap;gap:.5rem;">
-      <h2 style="font-size:1.2rem;font-weight:700;margin:0;">
-        💳 Detalle de Transacción
-      </h2>
-      {% if transaccion.estado == 'procesada' %}
-      <span class="badge badge-green" style="font-size:.85rem;padding:.35rem .8rem;">✅ Procesada</span>
-      {% elif transaccion.estado == 'pendiente' %}
-      <span class="badge badge-orange" style="font-size:.85rem;padding:.35rem .8rem;">⏳ Pendiente</span>
-      {% else %}
-      <span class="badge badge-red" style="font-size:.85rem;padding:.35rem .8rem;">❌ Fallida</span>
-      {% endif %}
-    </div>
-
-    <!-- Referencia destacada -->
-    <div style="background:rgba(91,94,244,0.08);border:1px solid rgba(91,94,244,0.2);
-                border-radius:10px;padding:1rem 1.2rem;margin-bottom:1.5rem;text-align:center;">
-      <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">
-        Referencia Externa
-      </div>
-      <div style="font-size:1rem;font-weight:700;color:var(--primary);font-family:monospace;letter-spacing:.05em;">
-        {{ transaccion.referencia_externa|default:"—" }}
-      </div>
-    </div>
-
-    <!-- Detalles -->
-    <div style="display:flex;flex-direction:column;gap:.8rem;">
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <span style="font-size:.85rem;color:var(--gray-500);">Evento</span>
-        <a href="{% url 'event_detail' transaccion.evento.pk %}"
-           style="font-weight:600;color:var(--gray-100);text-decoration:none;">
-          {{ transaccion.evento.nombre }}
-        </a>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <span style="font-size:.85rem;color:var(--gray-500);">Pasarela</span>
-        <span style="font-weight:600;color:var(--gray-100);">
-          {% if transaccion.pasarela %}{{ transaccion.pasarela.icono }} {{ transaccion.pasarela.nombre }}{% else %}—{% endif %}
-        </span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <span style="font-size:.85rem;color:var(--gray-500);">Monto</span>
-        <span style="font-weight:700;font-size:1.1rem;color:#059669;">${{ transaccion.monto|floatformat:2 }}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <span style="font-size:.85rem;color:var(--gray-500);">Fecha</span>
-        <span style="color:var(--gray-300);">{{ transaccion.fecha|date:"d M Y · H:i" }}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:.7rem 0;">
-        <span style="font-size:.85rem;color:var(--gray-500);">Usuario</span>
-        <span style="color:var(--gray-300);">{{ transaccion.usuario.username }}</span>
-      </div>
-    </div>
-  </div>
+<div class="card p-4 shadow" style="max-width:600px;">
+  <p><strong>Referencia:</strong> {{ transaccion.referencia_externa|default:"—" }}</p>
+  <table class="table table-striped">
+    <tbody>
+      <tr><th>Evento</th><td><a href="{% url 'event_detail' transaccion.evento.pk %}">{{ transaccion.evento.nombre }}</a></td></tr>
+      <tr><th>Pasarela</th><td>{% if transaccion.pasarela %}{{ transaccion.pasarela.icono }} {{ transaccion.pasarela.nombre }}{% else %}—{% endif %}</td></tr>
+      <tr><th>Monto</th><td>${{ transaccion.monto|floatformat:2 }}</td></tr>
+      <tr><th>Estado</th><td>
+        {% if transaccion.estado == 'procesada' %}<span class="badge bg-success">Procesada</span>
+        {% elif transaccion.estado == 'pendiente' %}<span class="badge bg-warning text-dark">Pendiente</span>
+        {% else %}<span class="badge bg-danger">Fallida</span>{% endif %}
+      </td></tr>
+      <tr><th>Fecha</th><td>{{ transaccion.fecha|date:"d/m/Y H:i" }}</td></tr>
+      <tr><th>Usuario</th><td>{{ transaccion.usuario.username }}</td></tr>
+    </tbody>
+  </table>
 </div>
 
 {% endblock %}
