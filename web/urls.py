@@ -39,6 +39,12 @@ urlpatterns = [
     path('events/<int:pk>/validar/',
          views.validar_evento, name='validar_evento'),
 
+    # Adapter – Catering / Streaming
+    path('evento/<int:evento_id>/contratar-catering/<int:catering_id>/',
+         views.contratar_catering, name='contratar_catering'),
+    path('evento/<int:evento_id>/contratar-streaming/<int:streaming_id>/',
+         views.contratar_streaming, name='contratar_streaming'),
+
     # Payment Gateway (Adapter Pattern)
     path('pagar/<int:evento_id>/',
          views.procesar_pago, name='procesar_pago'),

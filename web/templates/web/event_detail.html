@@ -275,61 +275,186 @@
   </p>
 </div>
 
-<!-- ── ADAPTER: Payment Gateway section ──────────────────────────────────── -->
+<!-- ── ADAPTER: External Services + Payment ──────────────────────────────── -->
 <div class="card card-elevated" style="margin-top:1.5rem;">
   <div style="display:flex;align-items:center;justify-content:space-between;
-              margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+              margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
     <h3 style="margin:0;font-size:1rem;color:var(--orange);">
-      💰 Adapter — Pasarelas de Pago
+      🔧 Servicios Externos (Adapter Pattern)
     </h3>
   </div>
 
-  {% if evento.pagado %}
-  <!-- Paid state -->
-  <div style="background:rgba(6,214,160,0.07);border:1px solid rgba(6,214,160,0.25);
-              border-radius:12px;padding:1.2rem 1.4rem;">
-    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;">
-      <span style="font-size:1.3rem;">✅</span>
-      <span style="font-weight:700;color:#059669;font-size:1rem;">EVENTO PAGADO</span>
+  <!-- ── CATERING ──────────────────────────────────────────────────────────── -->
+  <div style="margin-bottom:1.5rem;">
+    <h5 style="font-size:.95rem;font-weight:700;color:var(--purple-light);margin-bottom:.75rem;">
+      🍽️ Contratar Catering
+    </h5>
+
+    {% if evento.catering_contratado %}
+    <div style="background:rgba(6,214,160,0.07);border:1px solid rgba(6,214,160,0.25);
+                border-radius:10px;padding:.9rem 1.1rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">
+        <span>✅</span>
+        <strong style="color:#059669;">Catering contratado: {{ evento.catering_contratado.nombre }}</strong>
+      </div>
+      <span style="font-size:.85rem;color:var(--gray-400);">
+        Precio: €{{ evento.catering_contratado.precio|floatformat:0 }}
+      </span>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;font-size:.9rem;">
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Monto Pagado</span>
-        <span style="font-weight:700;color:#059669;">${{ evento.monto_pagado|floatformat:2 }}</span>
+    {% else %}
+    <p style="font-size:.85rem;color:var(--gray-400);margin-bottom:.75rem;">
+      Seleccione un proveedor de catering:
+    </p>
+    {% for catering in catererings %}
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:.8rem 1rem;margin-bottom:.5rem;
+                background:rgba(255,255,255,0.03);
+                border:1px solid rgba(255,255,255,0.07);
+                border-left:4px solid var(--primary);
+                border-radius:8px;">
+      <div>
+        <div style="font-size:.9rem;font-weight:600;color:var(--gray-100);">
+          {{ catering.nombre }}
+        </div>
+        <div style="font-size:.8rem;color:var(--gray-400);margin-top:.2rem;">
+          {{ catering.descripcion }}
+        </div>
       </div>
-      {% with t=evento.transacciones.last %}
-      {% if t %}
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Pasarela</span>
-        <span style="color:var(--gray-200);">{% if t.pasarela %}{{ t.pasarela.icono }} {{ t.pasarela.nombre }}{% endif %}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Referencia</span>
-        <span style="color:var(--gray-300);font-family:monospace;font-size:.85rem;">{{ t.referencia_externa }}</span>
-      </div>
-      {% endif %}
-      {% endwith %}
-      <div style="display:flex;justify-content:space-between;">
-        <span style="color:var(--gray-500);">Fecha de Pago</span>
-        <span style="color:var(--gray-300);">{{ evento.fecha_pago|date:"d M Y · H:i" }}</span>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-shrink:0;margin-left:1rem;">
+        <span style="font-size:.95rem;font-weight:700;color:var(--green);">
+          €{{ catering.precio|floatformat:0 }}
+        </span>
+        <a href="{% url 'contratar_catering' evento.pk catering.pk %}"
+           class="btn btn-primary btn-sm">Contratar</a>
       </div>
     </div>
+    {% endfor %}
+    {% endif %}
   </div>
-  {% else %}
-  <!-- Unpaid state -->
-  <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);
-              border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;">
-    <div style="font-size:.85rem;color:var(--gray-400);">
-      💡 Monto calculado:
-      <strong style="color:var(--orange);">${{ evento.calcular_monto_total|floatformat:2 }}</strong>
-      (evento + sub-eventos)
+
+  <!-- ── STREAMING ─────────────────────────────────────────────────────────── -->
+  <div style="margin-bottom:1.5rem;padding-top:1rem;
+              border-top:1px solid rgba(255,255,255,0.07);">
+    <h5 style="font-size:.95rem;font-weight:700;color:var(--purple-light);margin-bottom:.75rem;">
+      📡 Contratar Streaming
+    </h5>
+
+    {% if evento.streaming_contratado %}
+    <div style="background:rgba(6,214,160,0.07);border:1px solid rgba(6,214,160,0.25);
+                border-radius:10px;padding:.9rem 1.1rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">
+        <span>✅</span>
+        <strong style="color:#059669;">Streaming contratado: {{ evento.streaming_contratado.nombre }}</strong>
+      </div>
+      <span style="font-size:.85rem;color:var(--gray-400);">
+        Precio: €{{ evento.streaming_contratado.precio|floatformat:0 }}
+      </span>
     </div>
+    {% else %}
+    <p style="font-size:.85rem;color:var(--gray-400);margin-bottom:.75rem;">
+      Seleccione una plataforma de streaming:
+    </p>
+    {% for streaming in streamings %}
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:.8rem 1rem;margin-bottom:.5rem;
+                background:rgba(255,255,255,0.03);
+                border:1px solid rgba(255,255,255,0.07);
+                border-left:4px solid #17a2b8;
+                border-radius:8px;">
+      <div>
+        <div style="font-size:.9rem;font-weight:600;color:var(--gray-100);">
+          {{ streaming.nombre }}
+        </div>
+        <div style="font-size:.8rem;color:var(--gray-400);margin-top:.2rem;">
+          {{ streaming.descripcion }}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-shrink:0;margin-left:1rem;">
+        <span style="font-size:.95rem;font-weight:700;color:var(--green);">
+          €{{ streaming.precio|floatformat:0 }}
+        </span>
+        <a href="{% url 'contratar_streaming' evento.pk streaming.pk %}"
+           class="btn btn-primary btn-sm" style="background:#17a2b8;border-color:#17a2b8;">
+          Contratar
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
   </div>
-  <a href="{% url 'procesar_pago' evento.pk %}" class="btn btn-primary"
-     style="display:inline-flex;align-items:center;gap:.4rem;">
-    🚀 Pagar Evento
-  </a>
-  {% endif %}
+
+  <!-- ── PAGO ───────────────────────────────────────────────────────────────── -->
+  <div style="padding-top:1rem;border-top:1px solid rgba(255,255,255,0.07);">
+    <h5 style="font-size:.95rem;font-weight:700;color:var(--purple-light);margin-bottom:.75rem;">
+      💳 Procesar Pago
+    </h5>
+
+    {% if evento.pagado %}
+    <div style="background:rgba(6,214,160,0.07);border:1px solid rgba(6,214,160,0.25);
+                border-radius:12px;padding:1.2rem 1.4rem;">
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;">
+        <span style="font-size:1.3rem;">✅</span>
+        <span style="font-weight:700;color:#059669;font-size:1rem;">EVENTO PAGADO</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;font-size:.9rem;">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--gray-500);">Monto Pagado</span>
+          <span style="font-weight:700;color:#059669;">${{ evento.monto_pagado|floatformat:2 }}</span>
+        </div>
+        {% with t=evento.transacciones.last %}
+        {% if t %}
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--gray-500);">Pasarela</span>
+          <span style="color:var(--gray-200);">{% if t.pasarela %}{{ t.pasarela.icono }} {{ t.pasarela.nombre }}{% endif %}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--gray-500);">Referencia</span>
+          <span style="color:var(--gray-300);font-family:monospace;font-size:.85rem;">{{ t.referencia_externa }}</span>
+        </div>
+        {% endif %}
+        {% endwith %}
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--gray-500);">Fecha de Pago</span>
+          <span style="color:var(--gray-300);">{{ evento.fecha_pago|date:"d M Y · H:i" }}</span>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);
+                border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;">
+      <div style="font-size:.85rem;color:var(--gray-400);">
+        💡 Monto total a pagar:
+        <strong style="color:var(--orange);">€{{ monto_total|floatformat:2 }}</strong>
+      </div>
+      <div style="font-size:.8rem;color:var(--gray-500);margin-top:.4rem;">
+        Evento: €{{ evento.presupuesto|floatformat:0 }}
+        {% if evento.catering_contratado %} + Catering: €{{ evento.catering_contratado.precio|floatformat:0 }}{% endif %}
+        {% if evento.streaming_contratado %} + Streaming: €{{ evento.streaming_contratado.precio|floatformat:0 }}{% endif %}
+      </div>
+    </div>
+    <form method="post" action="{% url 'procesar_pago' evento.pk %}">
+      {% csrf_token %}
+      <div style="margin-bottom:.75rem;">
+        <label style="display:block;font-size:.85rem;color:var(--gray-400);margin-bottom:.4rem;">
+          Seleccione pasarela de pago:
+        </label>
+        <select name="pasarela_id"
+                style="width:100%;padding:.5rem .75rem;background:rgba(255,255,255,0.06);
+                       border:1px solid rgba(255,255,255,0.12);border-radius:8px;
+                       color:var(--gray-100);font-size:.9rem;" required>
+          <option value="">-- Seleccionar --</option>
+          {% for pasarela in pasarelas %}
+          <option value="{{ pasarela.id }}">{{ pasarela.icono }} {{ pasarela.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary"
+              style="width:100%;display:flex;align-items:center;justify-content:center;gap:.4rem;">
+        💳 Procesar Pago — €{{ monto_total|floatformat:2 }}
+      </button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 
 <!-- ── CHAIN OF RESPONSIBILITY: Validation section ───────────────────────── -->
