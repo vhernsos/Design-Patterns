@@ -186,10 +186,10 @@ class ValidadorServiciosExternos(Handler):
             return ResultadoValidacion(
                 aprobado=False,
                 mensaje=(
-                    f"El costo de servicios externos (Catering: ${costo_catering:,.2f} + "
-                    f"Streaming: ${costo_streaming:,.2f} = ${costo_total_servicios:,.2f}) "
-                    f"supera el presupuesto disponible (${datos.presupuesto_disponible:,.2f}) "
-                    f"en ${exceso:,.2f}."
+                    f"El costo de servicios externos (Catering: €{costo_catering:,.2f} + "
+                    f"Streaming: €{costo_streaming:,.2f} = €{costo_total_servicios:,.2f}) "
+                    f"supera el presupuesto disponible (€{datos.presupuesto_disponible:,.2f}) "
+                    f"en €{exceso:,.2f}."
                 ),
                 validador=self.nombre,
             )
