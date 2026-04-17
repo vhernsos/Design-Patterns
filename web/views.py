@@ -119,6 +119,7 @@ def dashboard(request):
 # ── Detail ───────────────────────────────────────────────────────────────────
 @login_required
 def event_detail(request, pk):
+    from decimal import Decimal
     evento = get_object_or_404(
         Evento.objects
               .select_related('tipo', 'ubicacion', 'organizador', 'evento_padre',
@@ -127,9 +128,24 @@ def event_detail(request, pk):
         pk=pk,
     )
     config = ConfiguracionGlobal()
+    catererings = ProveedorCatering.objects.all()
+    streamings = ProveedorStreaming.objects.all()
+    pasarelas = Pasarela.objects.filter(activa=True)
+
+    # Calculate total amount including contracted external services
+    monto_total = evento.calcular_monto_total()
+    if evento.catering_contratado:
+        monto_total += evento.catering_contratado.precio or Decimal('0')
+    if evento.streaming_contratado:
+        monto_total += evento.streaming_contratado.precio or Decimal('0')
+
     return render(request, 'web/event_detail.html', {
         'evento': evento,
         'config': config,
+        'catererings': catererings,
+        'streamings': streamings,
+        'pasarelas': pasarelas,
+        'monto_total': monto_total,
     })
 
 
@@ -867,6 +883,56 @@ def validar_evento(request, pk):
         'resultado_global': resultado_global,
         'resultados_detalle': resultados_detalle,
     })
+
+
+# ── CATERING / STREAMING: Adapter Pattern ─────────────────────────────────────
+
+@login_required
+def contratar_catering(request, evento_id, catering_id):
+    """Contract a catering provider for an event (Adapter Pattern)."""
+    from decimal import Decimal
+    evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
+    catering = get_object_or_404(ProveedorCatering, pk=catering_id)
+
+    # Budget validation: catering + streaming must not exceed event budget
+    costo_streaming = evento.streaming_contratado.precio if evento.streaming_contratado else Decimal('0')
+    if (catering.precio + costo_streaming) > (evento.presupuesto or Decimal('0')):
+        messages.error(
+            request,
+            f'❌ No se puede contratar "{catering.nombre}" (€{catering.precio:,.0f}): '
+            f'el coste total de servicios externos superaría el presupuesto del evento '
+            f'(€{evento.presupuesto:,.0f}).'
+        )
+        return redirect('event_detail', pk=evento_id)
+
+    evento.catering_contratado = catering
+    evento.save(update_fields=['catering_contratado'])
+    messages.success(request, f'✅ Catering "{catering.nombre}" contratado correctamente.')
+    return redirect('event_detail', pk=evento_id)
+
+
+@login_required
+def contratar_streaming(request, evento_id, streaming_id):
+    """Contract a streaming provider for an event (Adapter Pattern)."""
+    from decimal import Decimal
+    evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
+    streaming = get_object_or_404(ProveedorStreaming, pk=streaming_id)
+
+    # Budget validation: catering + streaming must not exceed event budget
+    costo_catering = evento.catering_contratado.precio if evento.catering_contratado else Decimal('0')
+    if (costo_catering + streaming.precio) > (evento.presupuesto or Decimal('0')):
+        messages.error(
+            request,
+            f'❌ No se puede contratar "{streaming.nombre}" (€{streaming.precio:,.0f}): '
+            f'el coste total de servicios externos superaría el presupuesto del evento '
+            f'(€{evento.presupuesto:,.0f}).'
+        )
+        return redirect('event_detail', pk=evento_id)
+
+    evento.streaming_contratado = streaming
+    evento.save(update_fields=['streaming_contratado'])
+    messages.success(request, f'✅ Streaming "{streaming.nombre}" contratado correctamente.')
+    return redirect('event_detail', pk=evento_id)
 
 
 # ── PAYMENT GATEWAY: Adapter Pattern ─────────────────────────────────────────
