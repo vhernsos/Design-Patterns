@@ -1,0 +1,38 @@
+[
+  {
+    "model": "web.proveedorcatering",
+    "pk": 1,
+    "fields": {
+      "nombre": "Catering Premium",
+      "descripcion": "Menú gourmet con servicio de camareros",
+      "precio": "5000.00"
+    }
+  },
+  {
+    "model": "web.proveedorcatering",
+    "pk": 2,
+    "fields": {
+      "nombre": "Catering Estándar",
+      "descripcion": "Menú básico con bebidas incluidas",
+      "precio": "3000.00"
+    }
+  },
+  {
+    "model": "web.proveedorstreaming",
+    "pk": 1,
+    "fields": {
+      "nombre": "Streaming 4K Premium",
+      "descripcion": "Transmisión en 4K con múltiples cámaras",
+      "precio": "8000.00"
+    }
+  },
+  {
+    "model": "web.proveedorstreaming",
+    "pk": 2,
+    "fields": {
+      "nombre": "Streaming HD Básico",
+      "descripcion": "Transmisión en HD con 1 cámara",
+      "precio": "4000.00"
+    }
+  }
+]
