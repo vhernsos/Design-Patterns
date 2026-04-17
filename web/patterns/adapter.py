@@ -681,6 +681,121 @@ class MercadoPagoAdapter(AdapterPasarela):
         return "💰"
 
 
+
+# ── Catering and Streaming Adapters (for ProveedorCatering/ProveedorStreaming) ─
+
+class AdapterCatering(ABC):
+    """
+    Interfaz para adaptadores de servicios de catering externos.
+    El código cliente usa esta interfaz sin conocer la API concreta del proveedor.
+    """
+
+    @abstractmethod
+    def obtener_menu(self, comensales: int) -> dict:
+        """Returns a menu proposal for the given number of guests."""
+
+    @abstractmethod
+    def obtener_precio(self) -> float:
+        """Returns the price of the catering service."""
+
+    @abstractmethod
+    def obtener_nombre(self) -> str:
+        """Returns the provider name."""
+
+
+class CateringPremiumAdapter(AdapterCatering):
+    """Adapter for the Premium Catering external service. Price: 5000€."""
+
+    def obtener_menu(self, comensales: int) -> dict:
+        return {
+            "nombre": "Menú Premium",
+            "comensales": comensales,
+            "platos": ["Entrante gourmet", "Plato principal premium", "Postre artesanal"],
+            "bebidas": ["Vino selecto", "Agua mineral", "Café premium"],
+        }
+
+    def obtener_precio(self) -> float:
+        return 5000.0
+
+    def obtener_nombre(self) -> str:
+        return "Catering Premium"
+
+
+class CateringEstandarAdapter(AdapterCatering):
+    """Adapter for the Standard Catering external service. Price: 3000€."""
+
+    def obtener_menu(self, comensales: int) -> dict:
+        return {
+            "nombre": "Menú Estándar",
+            "comensales": comensales,
+            "platos": ["Entrante estándar", "Plato principal", "Postre"],
+            "bebidas": ["Refresco", "Agua", "Café"],
+        }
+
+    def obtener_precio(self) -> float:
+        return 3000.0
+
+    def obtener_nombre(self) -> str:
+        return "Catering Estándar"
+
+
+class AdapterStreaming(ABC):
+    """
+    Interfaz para adaptadores de servicios de streaming externos.
+    El código cliente usa esta interfaz sin conocer la API concreta del proveedor.
+    """
+
+    @abstractmethod
+    def iniciar_transmision(self, titulo: str) -> dict:
+        """Starts a transmission and returns connection details."""
+
+    @abstractmethod
+    def obtener_precio(self) -> float:
+        """Returns the price of the streaming service."""
+
+    @abstractmethod
+    def obtener_nombre(self) -> str:
+        """Returns the provider name."""
+
+
+class Streaming4KAdapter(AdapterStreaming):
+    """Adapter for the 4K Premium Streaming external service. Price: 8000€."""
+
+    def iniciar_transmision(self, titulo: str) -> dict:
+        return {
+            "nombre": "Streaming 4K Premium",
+            "titulo": titulo,
+            "calidad": "4K Ultra HD",
+            "rtmp_url": "rtmps://streaming4k.example.com/live/",
+            "max_viewers": 100000,
+        }
+
+    def obtener_precio(self) -> float:
+        return 8000.0
+
+    def obtener_nombre(self) -> str:
+        return "Streaming 4K Premium"
+
+
+class StreamingHDAdapter(AdapterStreaming):
+    """Adapter for the HD Basic Streaming external service. Price: 4000€."""
+
+    def iniciar_transmision(self, titulo: str) -> dict:
+        return {
+            "nombre": "Streaming HD Básico",
+            "titulo": titulo,
+            "calidad": "HD 1080p",
+            "rtmp_url": "rtmp://streaminghd.example.com/live/",
+            "max_viewers": 10000,
+        }
+
+    def obtener_precio(self) -> float:
+        return 4000.0
+
+    def obtener_nombre(self) -> str:
+        return "Streaming HD Básico"
+
+
 # Registry: maps Pasarela.tipo to an AdapterPasarela instance
 _ADAPTER_MAP: dict = {
     'stripe':      StripeAdapter,

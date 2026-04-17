@@ -55,6 +55,9 @@ class DatosValidacion:
     modo_mantenimiento: bool = False
     # ID of the event being edited — excluded from schedule-conflict checks
     exclude_evento_id: Optional[int] = None
+    # External services costs (Adapter pattern)
+    costo_catering: float = 0.0
+    costo_streaming: float = 0.0
 
 
 @dataclass
@@ -167,6 +170,32 @@ class ValidadorServicios(Handler):
         return self._continuar(datos)
 
 
+class ValidadorServiciosExternos(Handler):
+    """
+    Eslabón 3 — Servicios externos (catering + streaming).
+    Valida que el costo total de servicios externos no supere el presupuesto del evento.
+    """
+
+    def manejar(self, datos: DatosValidacion) -> ResultadoValidacion:
+        costo_catering = datos.costo_catering or 0
+        costo_streaming = datos.costo_streaming or 0
+        costo_total_servicios = costo_catering + costo_streaming
+
+        if datos.presupuesto_disponible > 0 and costo_total_servicios > datos.presupuesto_disponible:
+            exceso = costo_total_servicios - datos.presupuesto_disponible
+            return ResultadoValidacion(
+                aprobado=False,
+                mensaje=(
+                    f"El costo de servicios externos (Catering: €{costo_catering:,.2f} + "
+                    f"Streaming: €{costo_streaming:,.2f} = €{costo_total_servicios:,.2f}) "
+                    f"supera el presupuesto disponible (€{datos.presupuesto_disponible:,.2f}) "
+                    f"en €{exceso:,.2f}."
+                ),
+                validador=self.nombre,
+            )
+        return self._continuar(datos)
+
+
 class ValidadorPresupuesto(Handler):
     """
     Eslabón 3 — Presupuesto disponible.
@@ -262,11 +291,12 @@ def construir_cadena_completa() -> Handler:
     Devuelve la cadena estándar de validación con todos los validadores
     en el orden recomendado:
 
-        Capacidad → Servicios → Presupuesto → Horarios → Restricciones globales
+        Capacidad → Servicios → ServiciosExternos → Presupuesto → Horarios → Restricciones globales
     """
     inicio = ValidadorCapacidad()
     inicio \
         .set_siguiente(ValidadorServicios()) \
+        .set_siguiente(ValidadorServiciosExternos()) \
         .set_siguiente(ValidadorPresupuesto()) \
         .set_siguiente(ValidadorHorarios()) \
         .set_siguiente(ValidadorRestriccionesGlobales())

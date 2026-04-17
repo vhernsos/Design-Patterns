@@ -269,6 +269,39 @@
         </div>
       </div>
 
+      <!-- External services (Adapter Pattern) -->
+      {% if proveedores_catering or proveedores_streaming %}
+      <div class="divider"></div>
+      <div class="form-section-title">🔌 Servicios Externos (Adapter)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-bottom:1rem;">
+
+        {% if proveedores_catering %}
+        <div class="form-group">
+          <label class="form-label">🍽️ Catering Externo</label>
+          <select name="catering_contratado" id="id_catering_contratado">
+            <option value="">— Sin catering externo —</option>
+            {% for p in proveedores_catering %}
+            <option value="{{ p.pk }}">{{ p.nombre }} — €{{ p.precio|floatformat:0 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        {% if proveedores_streaming %}
+        <div class="form-group">
+          <label class="form-label">📡 Streaming Externo</label>
+          <select name="streaming_contratado" id="id_streaming_contratado">
+            <option value="">— Sin streaming externo —</option>
+            {% for p in proveedores_streaming %}
+            <option value="{{ p.pk }}">{{ p.nombre }} — €{{ p.precio|floatformat:0 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+      </div>
+      {% endif %}
+
       <!-- ── COMPOSITE: Inline Sub-events ─────────────────────────── -->
       <div class="divider"></div>
       <div id="subeventos-section">

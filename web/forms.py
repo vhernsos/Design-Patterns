@@ -1,5 +1,5 @@
 from django import forms
-from .models import Evento, ConfiguracionEvento, GlobalConfig, ProveedorServicio
+from .models import Evento, ConfiguracionEvento, GlobalConfig, ProveedorServicio, ProveedorCatering, ProveedorStreaming
 
 
 class EventoForm(forms.ModelForm):
@@ -9,6 +9,7 @@ class EventoForm(forms.ModelForm):
             'nombre', 'tipo', 'ubicacion',
             'fecha_inicio', 'fecha_fin',
             'descripcion', 'max_asistentes', 'servicios',
+            'catering_contratado', 'streaming_contratado',
         ]
         widgets = {
             'fecha_inicio': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
@@ -70,6 +71,7 @@ class BuildEventoForm(forms.Form):
         widget=forms.DateTimeInput(attrs={'type': 'datetime-local'})
     )
     max_asistentes  = forms.IntegerField(min_value=1, initial=100)
+    presupuesto     = forms.DecimalField(max_digits=12, decimal_places=2, required=False, initial=0)
     descripcion     = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 3}), required=False
     )
@@ -79,6 +81,14 @@ class BuildEventoForm(forms.Form):
     tiene_seguridad  = forms.BooleanField(required=False)
     tiene_streaming  = forms.BooleanField(required=False)
     tiene_decoracion = forms.BooleanField(required=False)
+    catering_contratado  = forms.ModelChoiceField(
+        queryset=ProveedorCatering.objects.all(), required=False,
+        empty_label="— Sin catering externo —",
+    )
+    streaming_contratado = forms.ModelChoiceField(
+        queryset=ProveedorStreaming.objects.all(), required=False,
+        empty_label="— Sin streaming externo —",
+    )
 
     def clean(self):
         cleaned = super().clean()

@@ -68,6 +68,16 @@ class Evento(models.Model):
     )
     presupuesto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
+    # ── External services (Adapter pattern) ──────────────────────────────────
+    catering_contratado = models.ForeignKey(
+        'ProveedorCatering', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='eventos'
+    )
+    streaming_contratado = models.ForeignKey(
+        'ProveedorStreaming', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='eventos'
+    )
+
     # ── Payment fields ────────────────────────────────────────────────────────
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(null=True, blank=True)
@@ -167,6 +177,28 @@ class GlobalConfig(models.Model):
 
     def __str__(self):
         return "Global Configuration"
+
+
+# ── Adapter pattern: Catering and Streaming providers ────────────────────────
+
+class ProveedorCatering(models.Model):
+    """Available catering providers that can be contracted for an event."""
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.nombre} (€{self.precio:,.0f})"
+
+
+class ProveedorStreaming(models.Model):
+    """Available streaming providers that can be contracted for an event."""
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.nombre} (€{self.precio:,.0f})"
 
 
 # ── Adapter pattern: external service providers ───────────────────────────────
