@@ -129,8 +129,9 @@
         <td>{% if sub.presupuesto %}${{ sub.presupuesto }}{% endif %}</td>
         <td class="d-flex gap-1">
           <a href="{% url 'editar_subevento' evento.pk sub.pk %}" class="btn btn-warning btn-sm">Editar</a>
-          <form method="post" action="{% url 'eliminar_subevento' evento.pk sub.pk %}" class="m-0"
-                onsubmit="return confirm('¿Eliminar sub-evento «{{ sub.nombre }}»?');">
+          <form method="post"
+                action="{% url 'eliminar_subevento' evento.pk sub.pk %}" class="m-0"
+                onsubmit="return confirm('¿Eliminar sub-evento «{{ sub.nombre|escapejs }}»?');">
             {% csrf_token %}
             <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
           </form>
