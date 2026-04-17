@@ -1,10 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 import json
 
-from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado, Pasarela, Transaccion
+from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado, Pasarela, Transaccion, ProveedorCatering, ProveedorStreaming
 from .forms import (
     EventoForm, ConfiguracionEventoForm, GlobalConfigForm,
     BuildEventoForm, CloneEventoForm, SubEventoForm,
@@ -21,8 +21,8 @@ from .patterns.chain_of_responsibility import (
 from .patterns.bridge import (
     EventoReporte,
     ReporteResumen, ReporteDetallado, ReporteFinanciero,
-    ReporteCompleto,
-    FormatoPDF, FormatoCSV, FormatoHTML, FormatoEmail,
+    ReporteCompleto, ReporteEventoJSON,
+    FormatoPDF, FormatoCSV, FormatoHTML, FormatoEmail, FormatoJSON,
 )
 from .patterns.adapter import (
     AdaptadorCateringProveedorA, AdaptadorCateringProveedorB,
@@ -63,13 +63,24 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
         for ev in qs:
             existentes.append({'id': ev.pk, 'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
 
+    # Catering and streaming costs from selected providers
+    costo_catering = 0.0
+    catering_obj = cfg.get('catering_contratado')
+    if catering_obj:
+        costo_catering = float(catering_obj.precio)
+
+    costo_streaming = 0.0
+    streaming_obj = cfg.get('streaming_contratado')
+    if streaming_obj:
+        costo_streaming = float(streaming_obj.precio)
+
     return DatosValidacion(
         nombre=cfg.get('nombre', ''),
         max_asistentes=cfg.get('max_asistentes', 0),
         capacidad_ubicacion=capacidad_ub,
         servicios_requeridos=servicios_req,
         servicios_disponibles=['catering', 'escenario', 'iluminacion', 'seguridad', 'streaming', 'decoracion'],
-        presupuesto_disponible=0,   # not constrained by default
+        presupuesto_disponible=float(cfg.get('presupuesto', 0) or 0),
         costo_estimado=0,
         fecha_inicio=cfg.get('fecha_inicio'),
         fecha_fin=cfg.get('fecha_fin'),
@@ -77,6 +88,8 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
         limite_global_asistentes=singleton.get_limite_asistentes(),
         modo_mantenimiento=singleton.get_modo_mantenimiento(),
         exclude_evento_id=exclude_evento_id,
+        costo_catering=costo_catering,
+        costo_streaming=costo_streaming,
     )
 
 
@@ -108,7 +121,8 @@ def dashboard(request):
 def event_detail(request, pk):
     evento = get_object_or_404(
         Evento.objects
-              .select_related('tipo', 'ubicacion', 'organizador', 'evento_padre')
+              .select_related('tipo', 'ubicacion', 'organizador', 'evento_padre',
+                              'catering_contratado', 'streaming_contratado')
               .prefetch_related('servicios', 'clones', 'subeventos', 'servicios_contratados__proveedor'),
         pk=pk,
     )
@@ -161,6 +175,8 @@ def event_update(request, pk):
         'config_form': config_form,
         'title':       'Editar Evento',
         'evento':      evento,
+        'proveedores_catering':  ProveedorCatering.objects.all(),
+        'proveedores_streaming': ProveedorStreaming.objects.all(),
     })
 
 
@@ -309,6 +325,9 @@ def build_event(request):
                     'tiene_seguridad':   evento_data.tiene_seguridad,
                     'tiene_streaming':   evento_data.tiene_streaming,
                     'tiene_decoracion':  evento_data.tiene_decoracion,
+                    'presupuesto': data.get('presupuesto', 0),
+                    'catering_contratado': data.get('catering_contratado'),
+                    'streaming_contratado': data.get('streaming_contratado'),
                 },
                 ubicacion_obj=ubicacion_obj,
             )
@@ -330,18 +349,22 @@ def build_event(request):
                         ('Transmisión', '📡', 'streaming'),
                         ('Decoración',  '🎨', 'decoracion'),
                     ],
+                    'proveedores_catering':  ProveedorCatering.objects.all(),
+                    'proveedores_streaming': ProveedorStreaming.objects.all(),
                     'resultado_validacion': resultado,
                 })
 
             evento = Evento.objects.create(
-                nombre         = evento_data.nombre,
-                tipo           = tipo_obj,
-                ubicacion      = ubicacion_obj,
-                fecha_inicio   = data['fecha_inicio'],
-                fecha_fin      = data['fecha_fin'],
-                descripcion    = evento_data.descripcion,
-                max_asistentes = evento_data.max_asistentes,
-                organizador    = request.user,
+                nombre                = evento_data.nombre,
+                tipo                  = tipo_obj,
+                ubicacion             = ubicacion_obj,
+                fecha_inicio          = data['fecha_inicio'],
+                fecha_fin             = data['fecha_fin'],
+                descripcion           = evento_data.descripcion,
+                max_asistentes        = evento_data.max_asistentes,
+                organizador           = request.user,
+                catering_contratado   = data.get('catering_contratado'),
+                streaming_contratado  = data.get('streaming_contratado'),
             )
             ConfiguracionEvento.objects.create(
                 evento            = evento,
@@ -445,6 +468,8 @@ def build_event(request):
             ('Transmisión', '📡', 'streaming'),
             ('Decoración',  '🎨', 'decoracion'),
         ],
+        'proveedores_catering':  ProveedorCatering.objects.all(),
+        'proveedores_streaming': ProveedorStreaming.objects.all(),
     })
 
 
@@ -784,7 +809,7 @@ def validar_evento(request, pk):
         capacidad_ubicacion=evento.ubicacion.capacidad if evento.ubicacion else 0,
         servicios_requeridos=servicios_req,
         servicios_disponibles=['catering', 'escenario', 'iluminacion', 'seguridad', 'streaming', 'decoracion'],
-        presupuesto_disponible=0,
+        presupuesto_disponible=float(evento.presupuesto) if evento.presupuesto else 0,
         costo_estimado=0,
         fecha_inicio=evento.fecha_inicio,
         fecha_fin=evento.fecha_fin,
@@ -792,18 +817,22 @@ def validar_evento(request, pk):
         limite_global_asistentes=singleton.get_limite_asistentes(),
         modo_mantenimiento=singleton.get_modo_mantenimiento(),
         exclude_evento_id=pk,
+        costo_catering=float(evento.catering_contratado.precio) if evento.catering_contratado else 0.0,
+        costo_streaming=float(evento.streaming_contratado.precio) if evento.streaming_contratado else 0.0,
     )
 
     # Run each validator individually for detailed UI feedback
     from .patterns.chain_of_responsibility import (
         ValidadorCapacidad, ValidadorServicios,
-        ValidadorPresupuesto, ValidadorHorarios, ValidadorRestriccionesGlobales,
+        ValidadorServiciosExternos, ValidadorPresupuesto,
+        ValidadorHorarios, ValidadorRestriccionesGlobales,
         ResultadoValidacion,
     )
 
     validadores = [
         ValidadorCapacidad(),
         ValidadorServicios(),
+        ValidadorServiciosExternos(),
         ValidadorPresupuesto(),
         ValidadorHorarios(),
         ValidadorRestriccionesGlobales(),
@@ -939,3 +968,25 @@ def detalle_transaccion(request, transaccion_id):
     return render(request, 'web/detalle_transaccion.html', {
         'transaccion': transaccion,
     })
+
+
+# ── BRIDGE: JSON API for events ───────────────────────────────────────────────
+
+@login_required
+def evento_api_json(request, pk):
+    """Returns an event in JSON format using the Bridge pattern (ReporteEventoJSON)."""
+    evento = get_object_or_404(
+        Evento.objects
+              .select_related('tipo', 'ubicacion', 'organizador',
+                              'catering_contratado', 'streaming_contratado')
+              .prefetch_related('subeventos', 'configuracion'),
+        pk=pk,
+    )
+
+    if evento.organizador != request.user and not request.user.is_staff:
+        return JsonResponse({"error": "No tienes permiso"}, status=403)
+
+    reporte = ReporteEventoJSON()
+    json_data = reporte.generar_json(evento)
+
+    return JsonResponse(json.loads(json_data), safe=False)

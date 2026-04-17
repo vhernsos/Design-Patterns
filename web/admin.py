@@ -4,6 +4,7 @@ from .models import (
     Evento, ConfiguracionEvento, PlantillaEvento, GlobalConfig,
     ProveedorServicio, ServicioContratado,
     Pasarela, Transaccion,
+    ProveedorCatering, ProveedorStreaming,
 )
 
 
@@ -79,3 +80,15 @@ class TransaccionAdmin(admin.ModelAdmin):
     list_display = ['evento', 'pasarela', 'monto', 'estado', 'fecha', 'usuario']
     list_filter = ['estado', 'pasarela']
     search_fields = ['evento__nombre', 'referencia_externa']
+
+
+@admin.register(ProveedorCatering)
+class ProveedorCateringAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'precio', 'descripcion']
+    search_fields = ['nombre']
+
+
+@admin.register(ProveedorStreaming)
+class ProveedorStreamingAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'precio', 'descripcion']
+    search_fields = ['nombre']

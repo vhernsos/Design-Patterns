@@ -25,6 +25,9 @@ urlpatterns = [
     path('events/<int:pk>/reporte/pdf/',
          views.generar_reporte, {'tipo': 'completo', 'formato': 'pdf'},
          name='generar_pdf'),
+    # Bridge: JSON API representation
+    path('evento/<int:pk>/api/json/',
+         views.evento_api_json, name='evento_api_json'),
 
     # Adapter
     path('events/<int:evento_id>/proveedores/',

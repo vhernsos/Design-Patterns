@@ -247,6 +247,107 @@ class FormatoCSV(FormatoSalida):
         return "\n\n".join(partes) + "\n"
 
 
+class FormatoJSON(FormatoSalida):
+    """
+    Implementación: genera JSON para consumo de APIs.
+    """
+
+    def renderizar_titulo(self, titulo: str) -> str:
+        import json
+        return json.dumps({"titulo": titulo}, ensure_ascii=False)
+
+    def renderizar_seccion(self, titulo: str, contenido: Dict[str, Any]) -> str:
+        import json
+        return json.dumps({titulo: contenido}, indent=2, ensure_ascii=False)
+
+    def renderizar_lista(self, titulo: str, items: List[str]) -> str:
+        import json
+        return json.dumps({titulo: items}, indent=2, ensure_ascii=False)
+
+    def renderizar_tabla(self, cabeceras: List[str], filas: List[List[str]]) -> str:
+        import json
+        datos = [dict(zip(cabeceras, fila)) for fila in filas]
+        return json.dumps(datos, indent=2, ensure_ascii=False)
+
+    def ensamblar(self, partes: List[str]) -> str:
+        import json
+        resultado: Dict[str, Any] = {}
+        for parte in partes:
+            try:
+                parsed = json.loads(parte)
+                if isinstance(parsed, dict):
+                    resultado.update(parsed)
+            except (json.JSONDecodeError, ValueError):
+                pass
+        return json.dumps(resultado, indent=2, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# ReporteEventoJSON — Representación completa de un evento como JSON
+# ---------------------------------------------------------------------------
+
+class ReporteEventoJSON:
+    """
+    Genera representación JSON de un evento con todos sus detalles.
+    Puede usarse en APIs REST (Bridge: JSON como implementación de salida).
+    """
+
+    def generar_json(self, evento) -> str:
+        import json
+        from django.utils import timezone as tz
+
+        cfg = getattr(evento, 'configuracion', None)
+        catering = getattr(evento, 'catering_contratado', None)
+        streaming = getattr(evento, 'streaming_contratado', None)
+
+        datos: Dict[str, Any] = {
+            "evento": {
+                "id": evento.id,
+                "nombre": evento.nombre,
+                "tipo": str(evento.tipo) if evento.tipo else None,
+                "ubicacion": str(evento.ubicacion) if evento.ubicacion else None,
+                "fecha_inicio": evento.fecha_inicio.isoformat() if evento.fecha_inicio else None,
+                "fecha_fin": evento.fecha_fin.isoformat() if evento.fecha_fin else None,
+                "max_asistentes": evento.max_asistentes,
+                "descripcion": evento.descripcion,
+                "presupuesto": float(evento.presupuesto) if evento.presupuesto else 0,
+                "organizador": evento.organizador.username if evento.organizador else None,
+            },
+            "configuracion": {
+                "catering": cfg.tiene_catering if cfg else False,
+                "escenario": cfg.tiene_escenario if cfg else False,
+                "iluminacion": cfg.tiene_iluminacion if cfg else False,
+                "seguridad": cfg.tiene_seguridad if cfg else False,
+                "streaming": cfg.tiene_streaming if cfg else False,
+                "decoracion": cfg.tiene_decoracion if cfg else False,
+            },
+            "servicios_externos": {
+                "catering": {
+                    "contratado": catering.nombre if catering else None,
+                    "precio": float(catering.precio) if catering else 0,
+                },
+                "streaming": {
+                    "contratado": streaming.nombre if streaming else None,
+                    "precio": float(streaming.precio) if streaming else 0,
+                },
+            },
+            "subeventos": [
+                {
+                    "id": sub.id,
+                    "nombre": sub.nombre,
+                    "tipo": str(sub.tipo) if sub.tipo else None,
+                    "fecha_inicio": sub.fecha_inicio.isoformat() if sub.fecha_inicio else None,
+                    "fecha_fin": sub.fecha_fin.isoformat() if sub.fecha_fin else None,
+                    "presupuesto": float(sub.presupuesto) if sub.presupuesto else 0,
+                }
+                for sub in evento.subeventos.all()
+            ],
+            "generado": tz.now().isoformat(),
+        }
+
+        return json.dumps(datos, indent=2, ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # Abstracción: Reporte base (el puente)
 # ---------------------------------------------------------------------------
