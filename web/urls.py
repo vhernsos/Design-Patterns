@@ -52,4 +52,16 @@ urlpatterns = [
          views.historial_transacciones, name='historial_transacciones'),
     path('transaccion/<int:transaccion_id>/',
          views.detalle_transaccion, name='detalle_transaccion'),
+
+    # Decorator Pattern
+    path('evento/<int:evento_id>/decorador/<str:decorador_key>/toggle/',
+         views.toggle_decorador, name='toggle_decorador'),
+
+    # Template Method Pattern
+    path('events/<int:pk>/confirmar/',
+         views.confirmar_evento, name='confirmar_evento'),
+
+    # Observer Pattern – notification history
+    path('events/<int:pk>/notificaciones/',
+         views.historial_notificaciones, name='historial_notificaciones'),
 ]

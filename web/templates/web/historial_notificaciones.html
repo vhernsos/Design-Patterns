@@ -1,0 +1,82 @@
+{% extends 'web/base.html' %}
+{% block title %}Notificaciones – {{ evento.nombre }}{% endblock %}
+{% block content %}
+
+<div style="max-width:720px;margin:0 auto;">
+
+  <!-- Breadcrumb -->
+  <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--gray-400);">
+    <a href="{% url 'dashboard' %}" style="color:var(--gray-400);">Panel</a>
+    <span>›</span>
+    <a href="{% url 'event_detail' evento.pk %}" style="color:var(--gray-400);">{{ evento.nombre }}</a>
+    <span>›</span>
+    <span style="color:var(--gray-200);">Notificaciones (Observer)</span>
+  </div>
+
+  <!-- Header -->
+  <div class="card card-elevated" style="margin-bottom:1.5rem;padding:1.5rem;">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <span style="font-size:1.8rem;">📢</span>
+      <div>
+        <h2 style="margin:0;font-size:1.3rem;">Observer — Historial de Notificaciones</h2>
+        <p style="margin:.2rem 0 0;color:var(--gray-400);font-size:.85rem;">
+          Todas las notificaciones disparadas por el patrón
+          <strong style="color:var(--primary);">Observer</strong> para este evento.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% if notificaciones %}
+  <div style="display:flex;flex-direction:column;gap:.75rem;">
+    {% for n in notificaciones %}
+    <div class="card card-elevated" style="padding:.9rem 1.1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div style="display:flex;align-items:center;gap:.6rem;">
+          <span style="font-size:1.1rem;">
+            {% if n.tipo == 'servicio_contratado' %}🔌
+            {% elif n.tipo == 'evento_pagado' %}💳
+            {% elif n.tipo == 'evento_cancelado' %}🚫
+            {% elif n.tipo == 'evento_estado_cambió' %}📋
+            {% elif n.tipo == 'evento_fecha_cambió' %}📅
+            {% else %}📣{% endif %}
+          </span>
+          <div>
+            <div style="font-weight:600;font-size:.9rem;color:var(--gray-100);">{{ n.mensaje }}</div>
+            <div style="font-size:.78rem;color:var(--gray-500);margin-top:.1rem;">
+              Enviado a: <em>{{ n.enviado_a }}</em>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <span class="badge badge-blue">{{ n.get_tipo_display }}</span>
+          <div style="font-size:.75rem;color:var(--gray-500);margin-top:.25rem;">
+            {{ n.fecha|date:"d M Y · H:i" }}
+          </div>
+        </div>
+      </div>
+      {% if n.detalles %}
+      <div style="margin-top:.6rem;padding:.5rem .75rem;background:rgba(255,255,255,0.03);
+                  border-radius:6px;font-size:.78rem;color:var(--gray-400);font-family:monospace;">
+        {% for k, v in n.detalles.items %}
+          <span><strong>{{ k }}</strong>: {{ v }}</span>&nbsp;&nbsp;
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card card-elevated" style="text-align:center;padding:2rem;">
+    <p style="color:var(--gray-500);margin:0;">No hay notificaciones registradas aún para este evento.</p>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:1.5rem;text-align:center;">
+    <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary">
+      ← Volver al evento
+    </a>
+  </div>
+
+</div>
+{% endblock %}

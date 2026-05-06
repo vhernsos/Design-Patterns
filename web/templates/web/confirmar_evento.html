@@ -1,0 +1,115 @@
+{% extends 'web/base.html' %}
+{% block title %}Confirmar Evento – {{ evento.nombre }}{% endblock %}
+{% block content %}
+
+<div style="max-width:720px;margin:0 auto;">
+
+  <!-- Breadcrumb -->
+  <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--gray-400);">
+    <a href="{% url 'dashboard' %}" style="color:var(--gray-400);">Panel</a>
+    <span>›</span>
+    <a href="{% url 'event_detail' evento.pk %}" style="color:var(--gray-400);">{{ evento.nombre }}</a>
+    <span>›</span>
+    <span style="color:var(--gray-200);">Template Method</span>
+  </div>
+
+  <!-- Header -->
+  <div class="card card-elevated" style="margin-bottom:1.5rem;padding:1.5rem;">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <span style="font-size:1.8rem;">📋</span>
+      <div>
+        <h2 style="margin:0;font-size:1.3rem;">Template Method — Confirmar Evento</h2>
+        <p style="margin:.2rem 0 0;color:var(--gray-400);font-size:.85rem;">
+          Flujo estandarizado de confirmación para
+          <strong style="color:var(--primary);">{{ evento.get_tipo_evento_display }}</strong>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% if exito is None %}
+  <!-- Pre-execution card -->
+  <div class="card card-elevated" style="margin-bottom:1.5rem;">
+    <h3 style="font-size:1rem;color:var(--orange);margin-bottom:1rem;">⚙️ Pasos del proceso</h3>
+    <ol style="padding-left:1.25rem;color:var(--gray-300);line-height:1.9;font-size:.9rem;">
+      <li>✔ Validar datos básicos del evento</li>
+      <li>✔ Configurar servicios contratados</li>
+      <li>✔ Calcular costes totales</li>
+      <li>✔ Configuración específica de <em>{{ evento.get_tipo_evento_display }}</em></li>
+      <li>✔ Confirmar y guardar estado</li>
+    </ol>
+    <form method="post" style="margin-top:1.25rem;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary"
+              style="width:100%;display:flex;align-items:center;justify-content:center;gap:.5rem;">
+        🚀 Ejecutar proceso de confirmación
+      </button>
+    </form>
+  </div>
+
+  {% elif exito %}
+  <!-- Success -->
+  <div style="background:rgba(6,214,160,0.08);border:1px solid rgba(6,214,160,0.3);
+              border-radius:12px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;">
+      <span style="font-size:1.4rem;">✅</span>
+      <strong style="color:#059669;font-size:1.05rem;">Evento confirmado exitosamente</strong>
+    </div>
+    <p style="margin:0;font-size:.85rem;color:var(--gray-400);">
+      Todos los pasos del Template Method se completaron sin errores.
+    </p>
+  </div>
+
+  {% else %}
+  <!-- Failure -->
+  <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);
+              border-radius:12px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;">
+      <span style="font-size:1.4rem;">❌</span>
+      <strong style="color:#dc2626;font-size:1.05rem;">El proceso no pudo completarse</strong>
+    </div>
+    <p style="margin:0;font-size:.85rem;color:var(--gray-400);">
+      Revisa el detalle de pasos para identificar el error.
+    </p>
+  </div>
+  {% endif %}
+
+  {% if historial %}
+  <!-- Steps detail -->
+  <div class="card card-elevated">
+    <h3 style="font-size:1rem;color:var(--purple-light);margin-bottom:1rem;">📊 Historial de pasos</h3>
+    <div style="display:flex;flex-direction:column;gap:.6rem;">
+      {% for paso in historial %}
+      <div style="display:flex;align-items:flex-start;gap:.75rem;
+                  padding:.75rem 1rem;border-radius:8px;
+                  background:{% if paso.estado == 'completado' %}rgba(6,214,160,0.06){% elif paso.estado == 'error' %}rgba(239,68,68,0.06){% else %}rgba(255,255,255,0.03){% endif %};
+                  border:1px solid {% if paso.estado == 'completado' %}rgba(6,214,160,0.2){% elif paso.estado == 'error' %}rgba(239,68,68,0.2){% else %}rgba(255,255,255,0.07){% endif %};">
+        <span style="font-size:1.1rem;line-height:1;">
+          {% if paso.estado == 'completado' %}✅{% elif paso.estado == 'error' %}❌{% else %}⏳{% endif %}
+        </span>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:.9rem;color:var(--gray-100);">{{ paso.nombre }}</div>
+          <div style="font-size:.78rem;color:var(--gray-500);margin-top:.15rem;">{{ paso.timestamp }}</div>
+          {% if paso.resultado %}
+          <div style="font-size:.78rem;color:var(--gray-400);margin-top:.3rem;font-family:monospace;">
+            {% for k, v in paso.resultado.items %}
+              <span>{{ k }}: {{ v }}</span>&nbsp;
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Back -->
+  <div style="margin-top:1.5rem;text-align:center;">
+    <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary">
+      ← Volver al evento
+    </a>
+  </div>
+
+</div>
+{% endblock %}

@@ -473,6 +473,94 @@
   </p>
 </div>
 
+<!-- ── DECORATOR: Extra services section ─────────────────────────────────── -->
+<div class="card card-elevated" style="margin-top:1.5rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
+    <h3 style="margin:0;font-size:1rem;color:#f59e0b;">
+      🎨 Decorator — Extras del Evento
+    </h3>
+    {% if decoradores_activos %}
+    <span class="badge badge-green">{{ decoradores_activos|length }} extra{% if decoradores_activos|length != 1 %}s{% endif %} activo{% if decoradores_activos|length != 1 %}s{% endif %}</span>
+    {% endif %}
+  </div>
+
+  {% if descripcion_decorada and decoradores_activos %}
+  <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);
+              border-radius:10px;padding:.9rem 1.1rem;margin-bottom:1rem;">
+    <div style="font-size:.85rem;color:var(--gray-400);margin-bottom:.3rem;">Descripción decorada:</div>
+    <div style="font-size:.88rem;color:var(--gray-200);">{{ descripcion_decorada }}</div>
+    <div style="margin-top:.5rem;font-size:.85rem;">
+      Precio con extras:
+      <strong style="color:#f59e0b;">€{{ precio_decorado|floatformat:0 }}</strong>
+      {% if costo_decoradores > 0 %}
+      <span style="color:var(--gray-500);font-size:.8rem;">
+        (base €{{ evento.presupuesto|floatformat:0 }} + extras €{{ costo_decoradores|floatformat:0 }})
+      </span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;">
+    {% for d in decoradores_info %}
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:.65rem .9rem;border-radius:8px;
+                background:{% if d.activo %}rgba(245,158,11,0.08){% else %}rgba(255,255,255,0.03){% endif %};
+                border:1px solid {% if d.activo %}rgba(245,158,11,0.3){% else %}rgba(255,255,255,0.07){% endif %};">
+      <div>
+        <div style="font-size:.85rem;font-weight:600;color:{% if d.activo %}#f59e0b{% else %}var(--gray-300){% endif %};">
+          {{ d.nombre }}
+        </div>
+        <div style="font-size:.75rem;color:var(--gray-500);">€{{ d.precio }}</div>
+      </div>
+      <form method="post"
+            action="{% url 'toggle_decorador' evento.pk d.key %}"
+            style="margin:0;">
+        {% csrf_token %}
+        <button type="submit"
+                class="btn btn-sm {% if d.activo %}btn-warning{% else %}btn-primary{% endif %}"
+                style="font-size:.75rem;padding:.3rem .6rem;">
+          {% if d.activo %}✕ Quitar{% else %}+ Añadir{% endif %}
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── TEMPLATE METHOD + OBSERVER: Confirm & notifications ────────────────── -->
+<div class="card card-elevated" style="margin-top:1.5rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+    <h3 style="margin:0;font-size:1rem;color:var(--purple-light);">
+      📋 Template Method &amp; 📢 Observer
+    </h3>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      <a href="{% url 'historial_notificaciones' evento.pk %}" class="btn btn-secondary btn-sm">
+        📢 Ver Notificaciones ({{ evento.notificaciones.count }})
+      </a>
+      {% if not evento.confirmado %}
+      <a href="{% url 'confirmar_evento' evento.pk %}" class="btn btn-primary btn-sm">
+        🚀 Confirmar Evento
+      </a>
+      {% else %}
+      <span class="badge badge-green" style="align-self:center;">✅ Evento Confirmado</span>
+      {% endif %}
+    </div>
+  </div>
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:.85rem;color:var(--gray-400);">
+    <span>Tipo: <strong style="color:var(--gray-200);">{{ evento.get_tipo_evento_display }}</strong></span>
+    <span>Estado: <strong style="color:{% if evento.confirmado %}var(--green){% else %}var(--orange){% endif %};">
+      {% if evento.confirmado %}Confirmado{% else %}Pendiente{% endif %}
+    </strong></span>
+  </div>
+  <p style="margin:.6rem 0 0;font-size:.83rem;color:var(--gray-500);">
+    El Template Method define un flujo estandarizado (validar → servicios → costes → específico → confirmar).
+    El Observer notifica automáticamente a Email, Proveedor y Analítica ante cada cambio.
+  </p>
+</div>
+
 <!-- Singleton ribbon -->
 <div class="singleton-ribbon">
   <span class="singleton-tag">⚙ Config Singleton</span>

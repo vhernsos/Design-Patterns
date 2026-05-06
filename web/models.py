@@ -83,6 +83,35 @@ class Evento(models.Model):
     fecha_pago = models.DateTimeField(null=True, blank=True)
     monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
+    # ── Decorator pattern fields ──────────────────────────────────────────────
+    decoradores = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Lista de claves de decoradores aplicados al evento",
+    )
+
+    # ── Template Method pattern fields ────────────────────────────────────────
+    tipo_evento = models.CharField(
+        max_length=50,
+        choices=[
+            ('conferencia', 'Conferencia'),
+            ('boda', 'Boda'),
+            ('concierto', 'Concierto'),
+            ('cumpleaños', 'Cumpleaños'),
+            ('exposición', 'Exposición'),
+            ('otro', 'Otro'),
+        ],
+        default='otro',
+    )
+    confirmado = models.BooleanField(default=False)
+
+    # Campos específicos por tipo de evento
+    ponentes = models.JSONField(default=list, blank=True, help_text="Lista de ponentes (Conferencia)")
+    ceremonia_tipo = models.CharField(max_length=100, blank=True, help_text="Tipo de ceremonia (Boda)")
+    artistas = models.JSONField(default=list, blank=True, help_text="Lista de artistas (Concierto)")
+    edad_cumple = models.PositiveIntegerField(null=True, blank=True, help_text="Edad del cumpleaños")
+    cantidad_obras = models.PositiveIntegerField(null=True, blank=True, help_text="Número de obras (Exposición)")
+
     def __str__(self):
         return self.nombre
 
@@ -305,3 +334,34 @@ class Transaccion(models.Model):
 
     def __str__(self):
         return f"{self.pasarela} — {self.evento.nombre} [{self.estado}]"
+
+
+# ── Observer pattern: notification history ────────────────────────────────────
+
+class HistorialNotificacion(models.Model):
+    """Registra todas las notificaciones enviadas por el patrón Observer"""
+
+    TIPO_NOTIFICACION = [
+        ('evento_creado',       'Evento Creado'),
+        ('evento_actualizado',  'Evento Actualizado'),
+        ('evento_pagado',       'Evento Pagado'),
+        ('evento_cancelado',    'Evento Cancelado'),
+        ('evento_fecha_cambió', 'Fecha Cambió'),
+        ('evento_estado_cambió','Estado Cambió'),
+        ('servicio_contratado', 'Servicio Contratado'),
+    ]
+
+    evento = models.ForeignKey(
+        Evento, on_delete=models.CASCADE, related_name='notificaciones'
+    )
+    tipo = models.CharField(max_length=50, choices=TIPO_NOTIFICACION)
+    mensaje = models.TextField()
+    detalles = models.JSONField(default=dict, blank=True)
+    enviado_a = models.CharField(max_length=200)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.evento.nombre} — {self.tipo}"
