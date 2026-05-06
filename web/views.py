@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 import json
 
-from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado, Pasarela, Transaccion, ProveedorCatering, ProveedorStreaming
+from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado, Pasarela, Transaccion, ProveedorCatering, ProveedorStreaming, HistorialNotificacion
 from .forms import (
     EventoForm, ConfiguracionEventoForm, GlobalConfigForm,
     BuildEventoForm, CloneEventoForm, SubEventoForm,
@@ -30,6 +30,11 @@ from .patterns.adapter import (
     AdaptadorYouTube, AdaptadorVimeo, AdaptadorFacebookLive,
     get_adapter_for_pasarela,
 )
+from .patterns.decorator import (
+    aplicar_decoradores, DECORADORES_DISPONIBLES, DECORADORES_LABELS,
+)
+from .patterns.observer import construir_observable_con_observadores
+from .patterns.template_method import crear_proceso_evento
 
 
 def is_staff(user):
@@ -139,6 +144,24 @@ def event_detail(request, pk):
     if evento.streaming_contratado:
         monto_total += evento.streaming_contratado.precio or Decimal('0')
 
+    # ── Decorator Pattern ─────────────────────────────────────────────────────
+    decoradores_activos = evento.decoradores or []
+    evento_decorado = aplicar_decoradores(evento, decoradores_activos)
+    precio_decorado = evento_decorado.obtener_precio()
+    descripcion_decorada = evento_decorado.obtener_descripcion()
+    costo_decoradores = precio_decorado - (evento.presupuesto or Decimal('0'))
+
+    # Build list of available/active decorator info for the template
+    decoradores_info = [
+        {
+            'key': key,
+            'nombre': DECORADORES_LABELS[key][0],
+            'precio': DECORADORES_LABELS[key][1],
+            'activo': key in decoradores_activos,
+        }
+        for key in DECORADORES_DISPONIBLES
+    ]
+
     return render(request, 'web/event_detail.html', {
         'evento': evento,
         'config': config,
@@ -146,6 +169,12 @@ def event_detail(request, pk):
         'streamings': streamings,
         'pasarelas': pasarelas,
         'monto_total': monto_total,
+        # Decorator
+        'decoradores_info': decoradores_info,
+        'precio_decorado': precio_decorado,
+        'descripcion_decorada': descripcion_decorada,
+        'costo_decoradores': costo_decoradores,
+        'decoradores_activos': decoradores_activos,
     })
 
 
@@ -907,6 +936,18 @@ def contratar_catering(request, evento_id, catering_id):
 
     evento.catering_contratado = catering
     evento.save(update_fields=['catering_contratado'])
+
+    # Observer: notify about contracted service
+    observable = construir_observable_con_observadores(evento)
+    observable.contratar_servicio('catering', catering.nombre)
+    HistorialNotificacion.objects.create(
+        evento=evento,
+        tipo='servicio_contratado',
+        mensaje=f'Catering contratado: {catering.nombre}',
+        detalles={'tipo': 'catering', 'nombre': catering.nombre, 'precio': str(catering.precio)},
+        enviado_a='Email, Proveedor, Analítica',
+    )
+
     messages.success(request, f'✅ Catering "{catering.nombre}" contratado correctamente.')
     return redirect('event_detail', pk=evento_id)
 
@@ -931,6 +972,18 @@ def contratar_streaming(request, evento_id, streaming_id):
 
     evento.streaming_contratado = streaming
     evento.save(update_fields=['streaming_contratado'])
+
+    # Observer: notify about contracted service
+    observable = construir_observable_con_observadores(evento)
+    observable.contratar_servicio('streaming', streaming.nombre)
+    HistorialNotificacion.objects.create(
+        evento=evento,
+        tipo='servicio_contratado',
+        mensaje=f'Streaming contratado: {streaming.nombre}',
+        detalles={'tipo': 'streaming', 'nombre': streaming.nombre, 'precio': str(streaming.precio)},
+        enviado_a='Email, Proveedor, Analítica',
+    )
+
     messages.success(request, f'✅ Streaming "{streaming.nombre}" contratado correctamente.')
     return redirect('event_detail', pk=evento_id)
 
@@ -988,6 +1041,22 @@ def procesar_pago(request, evento_id):
             evento.fecha_pago = timezone.now()
             evento.monto_pagado = monto_total
             evento.save(update_fields=['pagado', 'fecha_pago', 'monto_pagado'])
+
+            # Observer: notify about payment
+            observable = construir_observable_con_observadores(evento)
+            observable.registrar_pago(float(monto_total), pasarela.nombre)
+            HistorialNotificacion.objects.create(
+                evento=evento,
+                tipo='evento_pagado',
+                mensaje=f'Pago procesado: €{monto_total} via {pasarela.nombre}',
+                detalles={
+                    'monto': str(monto_total),
+                    'pasarela': pasarela.nombre,
+                    'referencia': transaccion.referencia_externa,
+                },
+                enviado_a='Email, Proveedor, Analítica',
+            )
+
             messages.success(
                 request,
                 f'✅ {resultado.get("mensaje", "Pago procesado")} — Referencia: {transaccion.referencia_externa}'
@@ -1056,3 +1125,98 @@ def evento_api_json(request, pk):
     json_data = reporte.generar_json(evento)
 
     return JsonResponse(json.loads(json_data), safe=False)
+
+
+# ── DECORATOR: Toggle decorator extras on an event ────────────────────────────
+
+@login_required
+def toggle_decorador(request, evento_id, decorador_key):
+    """POST: toggle a decorator extra on/off for an event."""
+    evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
+
+    if decorador_key not in DECORADORES_DISPONIBLES:
+        messages.error(request, f'❌ Decorador desconocido: {decorador_key}')
+        return redirect('event_detail', pk=evento_id)
+
+    if request.method == 'POST':
+        activos = list(evento.decoradores or [])
+        nombre = DECORADORES_LABELS[decorador_key][0]
+        precio = DECORADORES_LABELS[decorador_key][1]
+
+        if decorador_key in activos:
+            activos.remove(decorador_key)
+            evento.decoradores = activos
+            evento.save(update_fields=['decoradores'])
+            messages.success(request, f'✅ Extra "{nombre}" eliminado del evento.')
+        else:
+            activos.append(decorador_key)
+            evento.decoradores = activos
+            evento.save(update_fields=['decoradores'])
+            messages.success(request, f'✅ Extra "{nombre}" (€{precio}) añadido al evento.')
+
+    return redirect('event_detail', pk=evento_id)
+
+
+# ── TEMPLATE METHOD: Confirm event flow ──────────────────────────────────────
+
+@login_required
+def confirmar_evento(request, pk):
+    """POST: run the Template Method process to confirm an event."""
+    evento = get_object_or_404(Evento, pk=pk, organizador=request.user)
+
+    if evento.confirmado:
+        messages.warning(request, '⚠️ El evento ya estaba confirmado.')
+        return redirect('event_detail', pk=pk)
+
+    if request.method == 'POST':
+        proceso = crear_proceso_evento(evento, evento.tipo_evento)
+        exito = proceso.ejecutar_proceso()
+        historial = proceso.obtener_historial()
+
+        # Observer: notify about status change
+        observable = construir_observable_con_observadores(evento)
+        if exito:
+            observable.cambiar_estado('confirmado')
+            HistorialNotificacion.objects.create(
+                evento=evento,
+                tipo='evento_estado_cambió',
+                mensaje=f'Evento confirmado mediante Template Method ({evento.tipo_evento})',
+                detalles={'tipo_evento': evento.tipo_evento, 'pasos': len(historial)},
+                enviado_a='Email, Proveedor, Analítica',
+            )
+            messages.success(
+                request,
+                f'✅ Evento confirmado correctamente usando el flujo de {evento.get_tipo_evento_display()}.'
+            )
+        else:
+            # Find the failed step message
+            error_msg = next(
+                (p['resultado'].get('error', '') for p in historial if p['estado'] == 'error'),
+                'Error desconocido'
+            )
+            messages.error(request, f'❌ No se pudo confirmar el evento: {error_msg}')
+
+        return render(request, 'web/confirmar_evento.html', {
+            'evento': evento,
+            'exito': exito,
+            'historial': historial,
+        })
+
+    return render(request, 'web/confirmar_evento.html', {
+        'evento': evento,
+        'exito': None,
+        'historial': [],
+    })
+
+
+# ── OBSERVER: Notification history for an event ───────────────────────────────
+
+@login_required
+def historial_notificaciones(request, pk):
+    """Show observer notification history for an event."""
+    evento = get_object_or_404(Evento, pk=pk, organizador=request.user)
+    notificaciones = evento.notificaciones.all()
+    return render(request, 'web/historial_notificaciones.html', {
+        'evento': evento,
+        'notificaciones': notificaciones,
+    })
