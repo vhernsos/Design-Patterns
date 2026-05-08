@@ -1,6 +1,5 @@
 from django import forms
 from .models import Evento, ConfiguracionEvento, GlobalConfig, ProveedorServicio, ProveedorCatering, ProveedorStreaming
-from .patterns.decorator import DECORADORES_DISPONIBLES
 
 
 class EventoForm(forms.ModelForm):
@@ -124,26 +123,31 @@ class CloneEventoForm(forms.Form):
 
 
 class EventoUpdateForm(forms.ModelForm):
-    """Formulario para actualizar presupuesto, servicios externos y decoradores."""
-
-    decoradores = forms.MultipleChoiceField(
-        choices=[(key, decorador.NOMBRE) for key, decorador in DECORADORES_DISPONIBLES.items()],
-        widget=forms.CheckboxSelectMultiple,
+    catering_contratado = forms.ModelChoiceField(
+        queryset=ProveedorCatering.objects.all(),
         required=False,
-        label="🎁 Extras (Decorator)",
+        label="🍽️ Catering Externo",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+
+    streaming_contratado = forms.ModelChoiceField(
+        queryset=ProveedorStreaming.objects.all(),
+        required=False,
+        label="📡 Streaming Externo",
+        widget=forms.Select(attrs={'class': 'form-control'}),
     )
 
     class Meta:
         model = Evento
         fields = [
-            'nombre', 'tipo', 'ubicacion', 'fecha_inicio', 'fecha_fin',
-            'descripcion', 'max_asistentes', 'presupuesto',
-            'catering_contratado', 'streaming_contratado', 'decoradores',
+            'nombre', 'presupuesto', 'max_asistentes', 'descripcion',
+            'catering_contratado', 'streaming_contratado',
         ]
         widgets = {
-            'fecha_inicio': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'fecha_fin': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'descripcion': forms.Textarea(attrs={'rows': 3}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'presupuesto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'max_asistentes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
 class SubEventoForm(forms.ModelForm):

@@ -217,7 +217,7 @@ class ValidadorPresupuesto(Handler):
         evento_temp.decoradores = datos.decoradores or []
 
         costos = CalculadoraCostes.calcular_costo_total(evento_temp)
-        costo_total = float(costos['costo_total'])
+        costo_total = float(costos['costos_totales'])
         costo_extras = float(costos['costo_adapter_total'] + costos['costo_decorator_total'])
 
         if datos.presupuesto_disponible > 0 and costo_extras > datos.presupuesto_disponible:
@@ -227,9 +227,9 @@ class ValidadorPresupuesto(Handler):
                 mensaje=(
                     f"El costo total (€{costo_total:,.2f}) supera el presupuesto disponible "
                     f"(€{datos.presupuesto_disponible:,.2f}) en €{exceso:,.2f}. "
-                    f"Desglose: Base €{float(costos['presupuesto_base']):,.2f} + "
-                    f"Adapter €{float(costos['costo_adapter_total']):,.2f} + "
-                    f"Decorator €{float(costos['costo_decorator_total']):,.2f}."
+                    f"Desglose: Catering/Streaming €{float(costos['costo_adapter_total']):,.2f} + "
+                    f"Extras €{float(costos['costo_decorator_total']):,.2f}. "
+                    f"Restante: €{float(costos['restante']):,.2f}."
                 ),
                 validador=self.nombre,
             )

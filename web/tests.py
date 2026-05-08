@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import SubEventoForm
+from .forms import EventoUpdateForm, SubEventoForm
 from .models import (
     ConfiguracionEvento,
     Evento,
@@ -133,38 +133,36 @@ class EventManagementRefactorTests(TestCase):
         )
 
         costos = CalculadoraCostes.calcular_costo_total(evento)
-        self.assertEqual(costos['presupuesto_base'], Decimal('1000.00'))
+        self.assertEqual(costos['presupuesto_limite'], Decimal('1000.00'))
         self.assertEqual(costos['costo_adapter_total'], Decimal('600.00'))
         self.assertEqual(costos['costo_decorator_total'], Decimal('2300'))
-        self.assertEqual(costos['costo_total'], Decimal('3900.00'))
+        self.assertEqual(costos['costos_totales'], Decimal('2900.00'))
+        self.assertEqual(costos['restante'], Decimal('-1900.00'))
 
         proceso = crear_proceso_evento(evento, evento.tipo_evento)
         datos_coste = proceso.calcular_costes()
         self.assertEqual(datos_coste['costo_base'], 1000.0)
         self.assertEqual(datos_coste['costo_adapter'], 600.0)
         self.assertEqual(datos_coste['costo_decorator'], 2300.0)
-        self.assertEqual(datos_coste['costo_total'], 3900.0)
+        self.assertEqual(datos_coste['costo_total'], 2900.0)
+        self.assertEqual(datos_coste['presupuesto_restante'], -1900.0)
 
-    def test_event_update_edits_budget_services_and_decorators_with_notifications(self):
+    def test_event_update_edits_budget_and_services_without_editing_decorators(self):
         self.client.login(username='alice', password='secret123')
         evento = self._create_event(presupuesto=Decimal('1200.00'))
         ConfiguracionEvento.objects.create(evento=evento, tiene_catering=False)
+        evento.decoradores = ['dj_profesional']
+        evento.save(update_fields=['decoradores'])
 
         response = self.client.post(
             reverse('event_update', args=[evento.pk]),
             {
                 'nombre': 'Evento Actualizado',
-                'tipo': self.tipo.pk,
-                'ubicacion': self.ubicacion.pk,
-                'fecha_inicio': evento.fecha_inicio.strftime('%Y-%m-%dT%H:%M'),
-                'fecha_fin': evento.fecha_fin.strftime('%Y-%m-%dT%H:%M'),
                 'descripcion': 'Ahora con extras',
                 'max_asistentes': 150,
                 'presupuesto': '2500.00',
                 'catering_contratado': self.catering.pk,
                 'streaming_contratado': self.streaming.pk,
-                'decoradores': ['dj_profesional'],
-                'notas_adicionales': 'ok',
             },
         )
 
@@ -175,7 +173,23 @@ class EventManagementRefactorTests(TestCase):
         self.assertEqual(evento.catering_contratado, self.catering)
         self.assertEqual(evento.streaming_contratado, self.streaming)
         self.assertEqual(evento.decoradores, ['dj_profesional'])
-        self.assertEqual(HistorialNotificacion.objects.filter(evento=evento, tipo='evento_actualizado').count(), 4)
+        self.assertEqual(HistorialNotificacion.objects.filter(evento=evento, tipo='evento_actualizado').count(), 3)
+
+    def test_event_update_form_does_not_include_decoradores(self):
+        self.assertNotIn('decoradores', EventoUpdateForm.base_fields)
+
+    def test_descargar_reporte_bridge_json(self):
+        self.client.login(username='alice', password='secret123')
+        evento = self._create_event(catering_contratado=self.catering)
+
+        response = self.client.get(
+            reverse('descargar_reporte', args=[evento.pk]),
+            {'tipo': 'financiero', 'formato': 'json'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertIn('presupuesto_limite', response.content.decode())
 
     def test_clone_view_blocks_subevents_and_root_detail_hides_clone_warning(self):
         self.client.login(username='alice', password='secret123')
