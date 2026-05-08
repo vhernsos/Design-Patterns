@@ -1,5 +1,6 @@
 from django import forms
 from .models import Evento, ConfiguracionEvento, GlobalConfig, ProveedorServicio, ProveedorCatering, ProveedorStreaming
+from .patterns.decorator import DECORADORES_DISPONIBLES
 
 
 class EventoForm(forms.ModelForm):
@@ -121,6 +122,30 @@ class CloneEventoForm(forms.Form):
     )
     max_asistentes = forms.IntegerField(min_value=1, label="Máximo de Asistentes")
 
+
+class EventoUpdateForm(forms.ModelForm):
+    """Formulario para actualizar presupuesto, servicios externos y decoradores."""
+
+    decoradores = forms.MultipleChoiceField(
+        choices=[(key, decorador.NOMBRE) for key, decorador in DECORADORES_DISPONIBLES.items()],
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="🎁 Extras (Decorator)",
+    )
+
+    class Meta:
+        model = Evento
+        fields = [
+            'nombre', 'tipo', 'ubicacion', 'fecha_inicio', 'fecha_fin',
+            'descripcion', 'max_asistentes', 'presupuesto',
+            'catering_contratado', 'streaming_contratado', 'decoradores',
+        ]
+        widgets = {
+            'fecha_inicio': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'fecha_fin': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'descripcion': forms.Textarea(attrs={'rows': 3}),
+        }
+
 class SubEventoForm(forms.ModelForm):
     """Form for adding a sub-event under an existing Composite event."""
 
@@ -129,13 +154,10 @@ class SubEventoForm(forms.ModelForm):
         fields = [
             'nombre', 'tipo', 'ubicacion',
             'fecha_inicio', 'fecha_fin',
-            'descripcion', 'max_asistentes', 'presupuesto',
+            'descripcion', 'max_asistentes',
         ]
         widgets = {
             'fecha_inicio': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'fecha_fin':    forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'descripcion':  forms.Textarea(attrs={'rows': 3}),
-        }
-        labels = {
-            'presupuesto': 'Presupuesto (USD)',
         }

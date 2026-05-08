@@ -89,16 +89,16 @@ class ProcesoEventoTemplate(ABC):
         return {'servicios_configurados': servicios}
 
     def calcular_costes(self) -> dict:
-        """Calcula los costes totales del evento"""
-        costo_base = float(self.evento.presupuesto or 0)
-        costo_catering = float(self.evento.catering_contratado.precio) if self.evento.catering_contratado else 0
-        costo_streaming = float(self.evento.streaming_contratado.precio) if self.evento.streaming_contratado else 0
-        costo_total = costo_base + costo_catering + costo_streaming
+        """Calcula los costes totales del evento."""
+        from .calculator import CalculadoraCostes
+
+        costos = CalculadoraCostes.calcular_costo_total(self.evento)
         return {
-            'costo_base': costo_base,
-            'costo_catering': costo_catering,
-            'costo_streaming': costo_streaming,
-            'costo_total': costo_total,
+            'costo_base': float(costos['presupuesto_base']),
+            'costo_adapter': float(costos['costo_adapter_total']),
+            'costo_decorator': float(costos['costo_decorator_total']),
+            'costo_total': float(costos['costo_total']),
+            'desglose_completo': costos['desglose'],
         }
 
     @abstractmethod

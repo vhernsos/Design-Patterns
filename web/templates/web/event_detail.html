@@ -28,8 +28,8 @@
       {% endif %}
       <span class="detail-meta-item">👥 {{ evento.max_asistentes }} máximo de asistentes</span>
       <span class="detail-meta-item">👤 {{ evento.organizador.username }}</span>
-      {% if evento.presupuesto %}
-      <span class="detail-meta-item">💰 ${{ evento.presupuesto }}</span>
+      {% if evento.obtener_presupuesto_efectivo %}
+      <span class="detail-meta-item">💰 €{{ evento.obtener_presupuesto_efectivo|floatformat:2 }}</span>
       {% endif %}
     </div>
     {% if evento.descripcion %}
@@ -39,8 +39,18 @@
     {% endif %}
   </div>
   <div class="detail-hero-actions">
+    {% if evento.evento_padre %}
+    <a href="{% url 'editar_subevento' evento.evento_padre.pk evento.pk %}" class="btn btn-warning btn-sm">✏️ Editar</a>
+    {% else %}
     <a href="{% url 'event_update' evento.pk %}" class="btn btn-warning btn-sm">✏️ Editar</a>
+    {% endif %}
+    {% if not evento.evento_padre and not evento.es_clon %}
     <a href="{% url 'clone_event'  evento.pk %}" class="btn btn-success btn-sm">🔁 Clonar</a>
+    {% else %}
+    <small style="color:rgba(255,255,255,0.65);max-width:220px;">
+      ℹ️ Solo los eventos principales originales pueden clonarse.
+    </small>
+    {% endif %}
     <a href="{% url 'event_delete' evento.pk %}" class="btn btn-danger btn-sm">🗑 Eliminar</a>
     <a href="{% url 'evento_api_json' evento.pk %}" class="btn btn-secondary btn-sm" target="_blank">🔗 API JSON</a>
     <a href="{% url 'dashboard' %}"              class="btn btn-secondary btn-sm">← Volver</a>
@@ -150,6 +160,40 @@
   </div>
   {% endif %}
 
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--green);">
+      💰 Desglose de Costes
+    </h3>
+    <table class="table table-sm" style="width:100%;">
+      <tr>
+        <td>Presupuesto base</td>
+        <td style="text-align:right;">{{ costos.desglose.base }}</td>
+      </tr>
+      {% if evento.catering_contratado %}
+      <tr>
+        <td>Catering (Adapter)</td>
+        <td style="text-align:right;">{{ costos.desglose.catering }}</td>
+      </tr>
+      {% endif %}
+      {% if evento.streaming_contratado %}
+      <tr>
+        <td>Streaming (Adapter)</td>
+        <td style="text-align:right;">{{ costos.desglose.streaming }}</td>
+      </tr>
+      {% endif %}
+      {% if evento.decoradores %}
+      <tr>
+        <td>Extras (Decorator)</td>
+        <td style="text-align:right;">{{ costos.desglose.extras }}</td>
+      </tr>
+      {% endif %}
+      <tr style="font-weight:700;border-top:1px solid rgba(255,255,255,0.08);">
+        <td>TOTAL</td>
+        <td style="text-align:right;">{{ costos.desglose.total }}</td>
+      </tr>
+    </table>
+  </div>
+
   <!-- Clone history -->
   {% if evento.clones.all %}
   <div class="card card-elevated">
@@ -198,7 +242,7 @@
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
       {% if evento.es_compuesto %}
       <span style="font-size:.8rem;color:var(--gray-400);">
-        💰 Total: ${{ evento.calcular_presupuesto_total|floatformat:2 }} &nbsp;
+        💰 Presupuesto raíz: €{{ evento.calcular_presupuesto_total|floatformat:2 }} &nbsp;
         ⏱ {{ evento.calcular_duracion_total }}h &nbsp;
         👥 {{ evento.obtener_capacidad_maxima }}
       </span>
@@ -235,7 +279,7 @@
         </a>
         <span style="font-size:.8rem;color:var(--gray-500);margin-left:.5rem;">
           {{ sub.fecha_inicio|date:"M d, Y" }} · 👥 {{ sub.max_asistentes }}
-          {% if sub.presupuesto %} · 💰 ${{ sub.presupuesto }}{% endif %}
+          · 💰 Hereda presupuesto del evento principal
         </span>
       </div>
       <form method="post"
@@ -427,9 +471,10 @@
         <strong style="color:var(--orange);">€{{ monto_total|floatformat:2 }}</strong>
       </div>
       <div style="font-size:.8rem;color:var(--gray-500);margin-top:.4rem;">
-        Evento: €{{ evento.presupuesto|floatformat:0 }}
+        Base: {{ costos.desglose.base }}
         {% if evento.catering_contratado %} + Catering: €{{ evento.catering_contratado.precio|floatformat:0 }}{% endif %}
         {% if evento.streaming_contratado %} + Streaming: €{{ evento.streaming_contratado.precio|floatformat:0 }}{% endif %}
+        {% if costos.costo_decorator_total > 0 %} + Extras: {{ costos.desglose.extras }}{% endif %}
       </div>
     </div>
     <form method="post" action="{% url 'procesar_pago' evento.pk %}">
@@ -495,7 +540,7 @@
       <strong style="color:#f59e0b;">€{{ precio_decorado|floatformat:0 }}</strong>
       {% if costo_decoradores > 0 %}
       <span style="color:var(--gray-500);font-size:.8rem;">
-        (base €{{ evento.presupuesto|floatformat:0 }} + extras €{{ costo_decoradores|floatformat:0 }})
+        (base {{ costos.desglose.base }} + extras {{ costos.desglose.extras }})
       </span>
       {% endif %}
     </div>

@@ -7,14 +7,14 @@ import json
 from .models import Evento, TipoEvento, ConfiguracionEvento, GlobalConfig, Ubicacion, ProveedorServicio, ServicioContratado, Pasarela, Transaccion, ProveedorCatering, ProveedorStreaming, HistorialNotificacion
 from .forms import (
     EventoForm, ConfiguracionEventoForm, GlobalConfigForm,
-    BuildEventoForm, CloneEventoForm, SubEventoForm,
+    BuildEventoForm, CloneEventoForm, EventoUpdateForm, SubEventoForm,
 )
 from .patterns.singleton import ConfiguracionGlobal
 from .patterns.builder import (
     EventoConferenciaBuilder, EventoBodaBuilder,
     EventoConcertBuilder, EventoTheatreBuilder, DirectorEvento,
 )
-from .patterns.prototype import EventoPrototype
+from .patterns.prototype import EventoPrototype, PrototypeEventos
 from .patterns.chain_of_responsibility import (
     DatosValidacion, construir_cadena_completa,
 )
@@ -33,6 +33,7 @@ from .patterns.adapter import (
 from .patterns.decorator import (
     aplicar_decoradores, DECORADORES_DISPONIBLES, DECORADORES_LABELS,
 )
+from .patterns.calculator import CalculadoraCostes
 from .patterns.observer import construir_observable_con_observadores
 from .patterns.template_method import crear_proceso_evento
 
@@ -95,6 +96,9 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
         exclude_evento_id=exclude_evento_id,
         costo_catering=costo_catering,
         costo_streaming=costo_streaming,
+        catering_contratado=catering_obj,
+        streaming_contratado=streaming_obj,
+        decoradores=cfg.get('decoradores') or [],
     )
 
 
@@ -124,7 +128,6 @@ def dashboard(request):
 # ── Detail ───────────────────────────────────────────────────────────────────
 @login_required
 def event_detail(request, pk):
-    from decimal import Decimal
     evento = get_object_or_404(
         Evento.objects
               .select_related('tipo', 'ubicacion', 'organizador', 'evento_padre',
@@ -137,19 +140,15 @@ def event_detail(request, pk):
     streamings = ProveedorStreaming.objects.all()
     pasarelas = Pasarela.objects.filter(activa=True)
 
-    # Calculate total amount including contracted external services
-    monto_total = evento.calcular_monto_total()
-    if evento.catering_contratado:
-        monto_total += evento.catering_contratado.precio or Decimal('0')
-    if evento.streaming_contratado:
-        monto_total += evento.streaming_contratado.precio or Decimal('0')
+    costos = CalculadoraCostes.calcular_costo_total(evento)
+    monto_total = costos['costo_total']
 
     # ── Decorator Pattern ─────────────────────────────────────────────────────
     decoradores_activos = evento.decoradores or []
     evento_decorado = aplicar_decoradores(evento, decoradores_activos)
     precio_decorado = evento_decorado.obtener_precio()
     descripcion_decorada = evento_decorado.obtener_descripcion()
-    costo_decoradores = precio_decorado - (evento.presupuesto or Decimal('0'))
+    costo_decoradores = costos['costo_decorator_total']
 
     # Build list of available/active decorator info for the template
     decoradores_info = [
@@ -169,6 +168,7 @@ def event_detail(request, pk):
         'streamings': streamings,
         'pasarelas': pasarelas,
         'monto_total': monto_total,
+        'costos': costos,
         # Decorator
         'decoradores_info': decoradores_info,
         'precio_decorado': precio_decorado,
@@ -181,11 +181,26 @@ def event_detail(request, pk):
 # ── Update ───────────────────────────────────────────────────────────────────
 @login_required
 def event_update(request, pk):
-    evento     = get_object_or_404(Evento, pk=pk)
+    evento = get_object_or_404(
+        Evento.objects.select_related('catering_contratado', 'streaming_contratado'),
+        pk=pk,
+        organizador=request.user,
+    )
+    if evento.evento_padre_id:
+        return redirect(
+            'editar_subevento',
+            evento_id=evento.evento_padre_id,
+            subevento_id=evento.pk,
+        )
     config_obj, _ = ConfiguracionEvento.objects.get_or_create(evento=evento)
 
     if request.method == 'POST':
-        form        = EventoForm(request.POST, instance=evento)
+        presupuesto_anterior = evento.presupuesto
+        catering_anterior = evento.catering_contratado
+        streaming_anterior = evento.streaming_contratado
+        decoradores_anteriores = list(evento.decoradores or [])
+
+        form = EventoUpdateForm(request.POST, instance=evento)
         config_form = ConfiguracionEventoForm(request.POST, instance=config_obj)
         if form.is_valid() and config_form.is_valid():
             # Sub-events are exempt from Chain of Responsibility validation
@@ -208,12 +223,134 @@ def event_update(request, pk):
                     f'❌ Validación fallida [{resultado.validador}]: {resultado.mensaje}',
                 )
             else:
-                form.save()
+                evento = form.save()
                 config_form.save()
+                observable = construir_observable_con_observadores(evento)
+                cambios_notificados = 0
+
+                if presupuesto_anterior != evento.presupuesto:
+                    observable.notificar(
+                        'evento_presupuesto_cambió',
+                        {
+                            'presupuesto_anterior': float(presupuesto_anterior or 0),
+                            'presupuesto_nuevo': float(evento.presupuesto or 0),
+                            'diferencia': float((evento.presupuesto or 0) - (presupuesto_anterior or 0)),
+                        }
+                    )
+                    HistorialNotificacion.objects.create(
+                        evento=evento,
+                        tipo='evento_actualizado',
+                        mensaje='Presupuesto actualizado',
+                        detalles={
+                            'presupuesto_anterior': str(presupuesto_anterior or 0),
+                            'presupuesto_nuevo': str(evento.presupuesto or 0),
+                        },
+                        enviado_a='Email, Proveedor, Analítica',
+                    )
+                    cambios_notificados += 1
+
+                if catering_anterior != evento.catering_contratado:
+                    if catering_anterior:
+                        observable.remover_servicio_adapter('catering', catering_anterior.nombre)
+                        HistorialNotificacion.objects.create(
+                            evento=evento,
+                            tipo='evento_actualizado',
+                            mensaje=f'Catering removido: {catering_anterior.nombre}',
+                            detalles={'tipo': 'catering', 'nombre': catering_anterior.nombre},
+                            enviado_a='Email, Proveedor, Analítica',
+                        )
+                        cambios_notificados += 1
+                    if evento.catering_contratado:
+                        observable.agregar_servicio_adapter(
+                            'catering',
+                            evento.catering_contratado.nombre,
+                            float(evento.catering_contratado.precio),
+                        )
+                        HistorialNotificacion.objects.create(
+                            evento=evento,
+                            tipo='evento_actualizado',
+                            mensaje=f'Catering agregado: {evento.catering_contratado.nombre}',
+                            detalles={
+                                'tipo': 'catering',
+                                'nombre': evento.catering_contratado.nombre,
+                                'precio': str(evento.catering_contratado.precio),
+                            },
+                            enviado_a='Email, Proveedor, Analítica',
+                        )
+                        cambios_notificados += 1
+
+                if streaming_anterior != evento.streaming_contratado:
+                    if streaming_anterior:
+                        observable.remover_servicio_adapter('streaming', streaming_anterior.nombre)
+                        HistorialNotificacion.objects.create(
+                            evento=evento,
+                            tipo='evento_actualizado',
+                            mensaje=f'Streaming removido: {streaming_anterior.nombre}',
+                            detalles={'tipo': 'streaming', 'nombre': streaming_anterior.nombre},
+                            enviado_a='Email, Proveedor, Analítica',
+                        )
+                        cambios_notificados += 1
+                    if evento.streaming_contratado:
+                        observable.agregar_servicio_adapter(
+                            'streaming',
+                            evento.streaming_contratado.nombre,
+                            float(evento.streaming_contratado.precio),
+                        )
+                        HistorialNotificacion.objects.create(
+                            evento=evento,
+                            tipo='evento_actualizado',
+                            mensaje=f'Streaming agregado: {evento.streaming_contratado.nombre}',
+                            detalles={
+                                'tipo': 'streaming',
+                                'nombre': evento.streaming_contratado.nombre,
+                                'precio': str(evento.streaming_contratado.precio),
+                            },
+                            enviado_a='Email, Proveedor, Analítica',
+                        )
+                        cambios_notificados += 1
+
+                decoradores_nuevos = list(evento.decoradores or [])
+                decoradores_agregados = set(decoradores_nuevos) - set(decoradores_anteriores)
+                decoradores_removidos = set(decoradores_anteriores) - set(decoradores_nuevos)
+
+                for decorador_key in decoradores_agregados:
+                    decorador = DECORADORES_DISPONIBLES.get(decorador_key)
+                    if decorador:
+                        observable.agregar_decorador(decorador.NOMBRE, float(decorador.PRECIO))
+                        HistorialNotificacion.objects.create(
+                            evento=evento,
+                            tipo='evento_actualizado',
+                            mensaje=f'Extra agregado: {decorador.NOMBRE}',
+                            detalles={'nombre': decorador.NOMBRE, 'precio': str(decorador.PRECIO)},
+                            enviado_a='Email, Proveedor, Analítica',
+                        )
+                        cambios_notificados += 1
+
+                for decorador_key in decoradores_removidos:
+                    decorador = DECORADORES_DISPONIBLES.get(decorador_key)
+                    if decorador:
+                        observable.remover_decorador(decorador.NOMBRE)
+                        HistorialNotificacion.objects.create(
+                            evento=evento,
+                            tipo='evento_actualizado',
+                            mensaje=f'Extra removido: {decorador.NOMBRE}',
+                            detalles={'nombre': decorador.NOMBRE},
+                            enviado_a='Email, Proveedor, Analítica',
+                        )
+                        cambios_notificados += 1
+
+                if cambios_notificados == 0:
+                    HistorialNotificacion.objects.create(
+                        evento=evento,
+                        tipo='evento_actualizado',
+                        mensaje='Evento actualizado sin cambios de presupuesto ni servicios',
+                        detalles={},
+                        enviado_a='Email, Proveedor, Analítica',
+                    )
                 messages.success(request, f'Evento "{evento.nombre}" actualizado exitosamente.')
                 return redirect('event_detail', pk=evento.pk)
     else:
-        form        = EventoForm(instance=evento)
+        form = EventoUpdateForm(instance=evento)
         config_form = ConfiguracionEventoForm(instance=config_obj)
     return render(request, 'web/event_form.html', {
         'form':        form,
@@ -242,7 +379,11 @@ def event_delete(request, pk):
 def build_event(request):
     all_events = Evento.objects.select_related(
         'tipo', 'ubicacion'
-    ).prefetch_related('configuracion').order_by('-creado_en')
+    ).prefetch_related('configuracion').filter(
+        organizador=request.user,
+        evento_padre__isnull=True,
+        es_clon=False,
+    ).order_by('-creado_en')
 
     # Serialize event data for JavaScript (clone source selection)
     events_json = []
@@ -264,6 +405,7 @@ def build_event(request):
             'tipo':         str(ev.tipo) if ev.tipo else '—',
             'fecha_inicio': ev.fecha_inicio.strftime('%b %d, %Y') if ev.fecha_inicio else '',
             'ubicacion':    str(ev.ubicacion) if ev.ubicacion else '',
+            'presupuesto':  str(ev.presupuesto or 0),
             'config':       cfg,
         })
 
@@ -275,28 +417,35 @@ def build_event(request):
 
             # ── Clone Mode ───────────────────────────────────────────────────
             if build_mode == 'from_clone':
-                original  = get_object_or_404(Evento, pk=data['source_event_id'])
-                prototype = EventoPrototype(original)
-                clone     = prototype.clonar()
+                original = get_object_or_404(
+                    Evento,
+                    pk=data['source_event_id'],
+                    organizador=request.user,
+                )
+                try:
+                    nuevo_evento = PrototypeEventos.clonar_evento(
+                        original,
+                        request.user,
+                        nombre=data['nombre'],
+                        fecha_inicio=data['fecha_inicio'],
+                        fecha_fin=data['fecha_fin'],
+                        max_asistentes=data['max_asistentes'],
+                        descripcion=data.get('descripcion', ''),
+                        presupuesto=data.get('presupuesto') if data.get('presupuesto') is not None else original.presupuesto,
+                    )
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                    return redirect('build_event')
 
-                clone.set_nombre(data['nombre'])
-                clone.set_fechas(data['fecha_inicio'], data['fecha_fin'])
-                clone.set_max_asistentes(data['max_asistentes'])
-                clone.set_descripcion(data.get('descripcion', ''))
+                if hasattr(nuevo_evento, 'configuracion'):
+                    nuevo_evento.configuracion.tiene_catering = data.get('tiene_catering', False)
+                    nuevo_evento.configuracion.tiene_escenario = data.get('tiene_escenario', False)
+                    nuevo_evento.configuracion.tiene_iluminacion = data.get('tiene_iluminacion', False)
+                    nuevo_evento.configuracion.tiene_seguridad = data.get('tiene_seguridad', False)
+                    nuevo_evento.configuracion.tiene_streaming = data.get('tiene_streaming', False)
+                    nuevo_evento.configuracion.tiene_decoracion = data.get('tiene_decoracion', False)
+                    nuevo_evento.configuracion.save()
 
-                clone.config = {
-                    'tiene_catering':    data.get('tiene_catering', False),
-                    'tiene_escenario':   data.get('tiene_escenario', False),
-                    'tiene_iluminacion': data.get('tiene_iluminacion', False),
-                    'tiene_seguridad':   data.get('tiene_seguridad', False),
-                    'tiene_streaming':   data.get('tiene_streaming', False),
-                    'tiene_decoracion':  data.get('tiene_decoracion', False),
-                    'notas_adicionales': prototype.config.get('notas_adicionales', ''),
-                }
-
-                nuevo_evento = clone.save_to_db(request.user)
-                nuevo_evento.evento_original = original
-                nuevo_evento.save()
                 messages.success(
                     request,
                     f'Evento clonado exitosamente como "{nuevo_evento.nombre}".'
@@ -407,6 +556,7 @@ def build_event(request):
                 fecha_fin             = data['fecha_fin'],
                 descripcion           = evento_data.descripcion,
                 max_asistentes        = evento_data.max_asistentes,
+                presupuesto           = data.get('presupuesto') or 0,
                 organizador           = request.user,
                 catering_contratado   = data.get('catering_contratado'),
                 streaming_contratado  = data.get('streaming_contratado'),
@@ -442,8 +592,6 @@ def build_event(request):
                 sub_fecha_inicio  = request.POST.get(f'{prefix}-fecha_inicio', '')
                 sub_fecha_fin     = request.POST.get(f'{prefix}-fecha_fin', '')
                 sub_max           = request.POST.get(f'{prefix}-max_asistentes', '50')
-                sub_presupuesto   = request.POST.get(f'{prefix}-presupuesto', '0')
-
                 sub_fi = _parse_dt(sub_fecha_inicio) or data['fecha_inicio']
                 sub_ff = _parse_dt(sub_fecha_fin)    or data['fecha_fin']
 
@@ -463,11 +611,6 @@ def build_event(request):
                     sub_max_int = int(sub_max)
                 except (ValueError, TypeError):
                     sub_max_int = 50
-                try:
-                    sub_pres = float(sub_presupuesto)
-                except (ValueError, TypeError):
-                    sub_pres = 0.0
-
                 subevento = Evento.objects.create(
                     nombre         = sub_nombre,
                     tipo           = sub_tipo_obj,
@@ -475,7 +618,6 @@ def build_event(request):
                     fecha_inicio   = sub_fi,
                     fecha_fin      = sub_ff,
                     max_asistentes = sub_max_int,
-                    presupuesto    = sub_pres,
                     organizador    = request.user,
                     evento_padre   = evento,
                     es_compuesto   = False,
@@ -521,35 +663,39 @@ def build_event(request):
 # ── Prototype / Clone ─────────────────────────────────────────────────────────
 @login_required
 def clone_event(request, pk):
-    original  = get_object_or_404(Evento, pk=pk)
-    prototype = EventoPrototype(original)
+    original = get_object_or_404(Evento, pk=pk, organizador=request.user)
+    if original.evento_padre_id is not None:
+        messages.error(
+            request,
+            "No se pueden clonar subeventos. Clona el evento principal.",
+        )
+        return redirect('event_detail', pk=original.pk)
+    if original.es_clon:
+        messages.error(
+            request,
+            "No se pueden clonar clones. Clona el evento original.",
+        )
+        return redirect('event_detail', pk=original.pk)
 
     if request.method == 'POST':
         form = CloneEventoForm(request.POST)
         if form.is_valid():
-            data  = form.cleaned_data
-            clone = prototype.clonar()
-            clone.set_nombre(data['nombre'])
-            clone.set_fechas(data['fecha_inicio'], data['fecha_fin'])
-            clone.set_max_asistentes(data['max_asistentes'])
-            clone.set_descripcion(data.get('descripcion', ''))
-            nuevo_evento = clone.save_to_db(request.user)
-            nuevo_evento.evento_original = original
-            nuevo_evento.save()
+            data = form.cleaned_data
+            try:
+                nuevo_evento = PrototypeEventos.clonar_evento(
+                    original,
+                    request.user,
+                    nombre=data['nombre'],
+                    fecha_inicio=data['fecha_inicio'],
+                    fecha_fin=data['fecha_fin'],
+                    max_asistentes=data['max_asistentes'],
+                    descripcion=data.get('descripcion', ''),
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect('event_detail', pk=original.pk)
 
-            # Clone sub-events if the original has any
-            for sub_evento in original.subeventos.all():
-                sub_prototype = EventoPrototype(sub_evento)
-                sub_clone = sub_prototype.clonar()
-                sub_clone.set_nombre(f"Copia de {sub_evento.nombre}")
-                sub_evento_clonado = sub_clone.save_to_db(request.user)
-                sub_evento_clonado.evento_padre = nuevo_evento
-                sub_evento_clonado.save()
-
-            messages.success(
-                request,
-                f'Evento clonado exitosamente como "{nuevo_evento.nombre}".'
-            )
+            messages.success(request, f'Evento clonado exitosamente como "{nuevo_evento.nombre}".')
             return redirect('event_detail', pk=nuevo_evento.pk)
     else:
         form = CloneEventoForm(initial={
@@ -864,6 +1010,9 @@ def validar_evento(request, pk):
         exclude_evento_id=pk,
         costo_catering=float(evento.catering_contratado.precio) if evento.catering_contratado else 0.0,
         costo_streaming=float(evento.streaming_contratado.precio) if evento.streaming_contratado else 0.0,
+        catering_contratado=evento.catering_contratado,
+        streaming_contratado=evento.streaming_contratado,
+        decoradores=list(evento.decoradores or []),
     )
 
     # Run each validator individually for detailed UI feedback
@@ -920,29 +1069,32 @@ def validar_evento(request, pk):
 def contratar_catering(request, evento_id, catering_id):
     """Contract a catering provider for an event (Adapter Pattern)."""
     from decimal import Decimal
-    evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
+    evento = get_object_or_404(Evento.objects.select_related('streaming_contratado', 'catering_contratado'), pk=evento_id, organizador=request.user)
     catering = get_object_or_404(ProveedorCatering, pk=catering_id)
 
-    # Budget validation: catering + streaming must not exceed event budget
-    costo_streaming = evento.streaming_contratado.precio if evento.streaming_contratado else Decimal('0')
-    if (catering.precio + costo_streaming) > (evento.presupuesto or Decimal('0')):
+    catering_anterior = evento.catering_contratado
+    evento.catering_contratado = catering
+    costos = CalculadoraCostes.calcular_costo_total(evento)
+    costo_extras = costos['costo_adapter_total'] + costos['costo_decorator_total']
+    if costo_extras > evento.obtener_presupuesto_efectivo() and evento.obtener_presupuesto_efectivo() > Decimal('0'):
+        evento.catering_contratado = catering_anterior
         messages.error(
             request,
             f'❌ No se puede contratar "{catering.nombre}" (€{catering.precio:,.0f}): '
-            f'el coste total de servicios externos superaría el presupuesto del evento '
-            f'(€{evento.presupuesto:,.0f}).'
+            f'el coste adicional (€{costo_extras:,.0f}) superaría el presupuesto disponible '
+            f'(€{evento.obtener_presupuesto_efectivo():,.0f}).'
         )
         return redirect('event_detail', pk=evento_id)
 
-    evento.catering_contratado = catering
     evento.save(update_fields=['catering_contratado'])
 
-    # Observer: notify about contracted service
     observable = construir_observable_con_observadores(evento)
-    observable.contratar_servicio('catering', catering.nombre)
+    if catering_anterior and catering_anterior != catering:
+        observable.remover_servicio_adapter('catering', catering_anterior.nombre)
+    observable.agregar_servicio_adapter('catering', catering.nombre, float(catering.precio))
     HistorialNotificacion.objects.create(
         evento=evento,
-        tipo='servicio_contratado',
+        tipo='evento_actualizado',
         mensaje=f'Catering contratado: {catering.nombre}',
         detalles={'tipo': 'catering', 'nombre': catering.nombre, 'precio': str(catering.precio)},
         enviado_a='Email, Proveedor, Analítica',
@@ -956,29 +1108,32 @@ def contratar_catering(request, evento_id, catering_id):
 def contratar_streaming(request, evento_id, streaming_id):
     """Contract a streaming provider for an event (Adapter Pattern)."""
     from decimal import Decimal
-    evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
+    evento = get_object_or_404(Evento.objects.select_related('streaming_contratado', 'catering_contratado'), pk=evento_id, organizador=request.user)
     streaming = get_object_or_404(ProveedorStreaming, pk=streaming_id)
 
-    # Budget validation: catering + streaming must not exceed event budget
-    costo_catering = evento.catering_contratado.precio if evento.catering_contratado else Decimal('0')
-    if (costo_catering + streaming.precio) > (evento.presupuesto or Decimal('0')):
+    streaming_anterior = evento.streaming_contratado
+    evento.streaming_contratado = streaming
+    costos = CalculadoraCostes.calcular_costo_total(evento)
+    costo_extras = costos['costo_adapter_total'] + costos['costo_decorator_total']
+    if costo_extras > evento.obtener_presupuesto_efectivo() and evento.obtener_presupuesto_efectivo() > Decimal('0'):
+        evento.streaming_contratado = streaming_anterior
         messages.error(
             request,
             f'❌ No se puede contratar "{streaming.nombre}" (€{streaming.precio:,.0f}): '
-            f'el coste total de servicios externos superaría el presupuesto del evento '
-            f'(€{evento.presupuesto:,.0f}).'
+            f'el coste adicional (€{costo_extras:,.0f}) superaría el presupuesto disponible '
+            f'(€{evento.obtener_presupuesto_efectivo():,.0f}).'
         )
         return redirect('event_detail', pk=evento_id)
 
-    evento.streaming_contratado = streaming
     evento.save(update_fields=['streaming_contratado'])
 
-    # Observer: notify about contracted service
     observable = construir_observable_con_observadores(evento)
-    observable.contratar_servicio('streaming', streaming.nombre)
+    if streaming_anterior and streaming_anterior != streaming:
+        observable.remover_servicio_adapter('streaming', streaming_anterior.nombre)
+    observable.agregar_servicio_adapter('streaming', streaming.nombre, float(streaming.precio))
     HistorialNotificacion.objects.create(
         evento=evento,
-        tipo='servicio_contratado',
+        tipo='evento_actualizado',
         mensaje=f'Streaming contratado: {streaming.nombre}',
         detalles={'tipo': 'streaming', 'nombre': streaming.nombre, 'precio': str(streaming.precio)},
         enviado_a='Email, Proveedor, Analítica',
@@ -1001,7 +1156,7 @@ def procesar_pago(request, evento_id):
         return redirect('event_detail', pk=evento_id)
 
     pasarelas = Pasarela.objects.filter(activa=True)
-    monto_total = evento.calcular_monto_total()
+    monto_total = CalculadoraCostes.calcular_costo_total(evento)['costo_total']
 
     if request.method == 'POST':
         pasarela_id = request.POST.get('pasarela_id')
@@ -1141,17 +1296,34 @@ def toggle_decorador(request, evento_id, decorador_key):
     if request.method == 'POST':
         activos = list(evento.decoradores or [])
         nombre = DECORADORES_LABELS[decorador_key][0]
-        precio = DECORADORES_LABELS[decorador_key][1]
+        precio = DECORADORES_DISPONIBLES[decorador_key].PRECIO
+        observable = construir_observable_con_observadores(evento)
 
         if decorador_key in activos:
             activos.remove(decorador_key)
             evento.decoradores = activos
             evento.save(update_fields=['decoradores'])
+            observable.remover_decorador(nombre)
+            HistorialNotificacion.objects.create(
+                evento=evento,
+                tipo='evento_actualizado',
+                mensaje=f'Extra eliminado: {nombre}',
+                detalles={'nombre': nombre},
+                enviado_a='Email, Proveedor, Analítica',
+            )
             messages.success(request, f'✅ Extra "{nombre}" eliminado del evento.')
         else:
             activos.append(decorador_key)
             evento.decoradores = activos
             evento.save(update_fields=['decoradores'])
+            observable.agregar_decorador(nombre, float(precio))
+            HistorialNotificacion.objects.create(
+                evento=evento,
+                tipo='evento_actualizado',
+                mensaje=f'Extra agregado: {nombre}',
+                detalles={'nombre': nombre, 'precio': str(precio)},
+                enviado_a='Email, Proveedor, Analítica',
+            )
             messages.success(request, f'✅ Extra "{nombre}" (€{precio}) añadido al evento.')
 
     return redirect('event_detail', pk=evento_id)

@@ -24,6 +24,29 @@ class NotificadorProveedor(Observador):
     """Notifica a proveedores (catering, streaming, etc.)"""
 
     def actualizar(self, evento, tipo_cambio: str, detalles: dict):
+        if tipo_cambio == 'servicio_adapter_agregado':
+            print(f"[PROVEEDOR] {detalles.get('tipo', '').upper()} agregado al evento {evento.nombre}")
+            print(f"            Proveedor: {detalles.get('nombre')}")
+            print(f"            Precio: €{detalles.get('precio', 0):,.2f}")
+            print("            Se enviará notificación al proveedor...")
+            return
+
+        if tipo_cambio == 'servicio_adapter_removido':
+            print(f"[PROVEEDOR] {detalles.get('tipo', '').upper()} removido del evento {evento.nombre}")
+            print(f"            Proveedor afectado: {detalles.get('nombre')}")
+            return
+
+        if tipo_cambio == 'servicio_decorator_agregado':
+            print(f"[PROVEEDOR] Extra agregado: {detalles.get('nombre')}")
+            print(f"            Evento: {evento.nombre}")
+            print(f"            Precio: €{detalles.get('precio', 0):,.2f}")
+            return
+
+        if tipo_cambio == 'servicio_decorator_removido':
+            print(f"[PROVEEDOR] Extra removido: {detalles.get('nombre')}")
+            print(f"            Evento: {evento.nombre}")
+            return
+
         print(f"[PROVEEDOR] Notificando proveedores sobre: {tipo_cambio}")
         print(f"            Evento: {evento.nombre}")
         if evento.catering_contratado:
@@ -36,6 +59,13 @@ class NotificadorAnalytica(Observador):
     """Registra eventos en el módulo de analítica"""
 
     def actualizar(self, evento, tipo_cambio: str, detalles: dict):
+        if 'servicio' in tipo_cambio or 'decorator' in tipo_cambio:
+            print(f"[ANALÍTICA] Evento: {evento.id} - {evento.nombre}")
+            print(f"            Cambio: {tipo_cambio}")
+            print(f"            Detalles: {detalles}")
+            print(f"            Timestamp: {datetime.now().isoformat()}")
+            return
+
         print(f"[ANALÍTICA] Registrando evento: {tipo_cambio}")
         print(f"            Evento ID: {evento.id}")
         print(f"            Timestamp: {datetime.now().isoformat()}")
@@ -87,11 +117,41 @@ class EventoObservable:
 
     def contratar_servicio(self, tipo_servicio: str, nombre_servicio: str):
         """Notifica cuando se contrata un servicio"""
+        self.agregar_servicio_adapter(tipo_servicio, nombre_servicio, 0)
+
+    def agregar_servicio_adapter(self, tipo_servicio: str, nombre_servicio: str, precio: float):
         self.notificar(
-            'servicio_contratado',
+            'servicio_adapter_agregado',
             {
                 'tipo': tipo_servicio,
                 'nombre': nombre_servicio,
+                'precio': precio,
+            }
+        )
+
+    def remover_servicio_adapter(self, tipo_servicio: str, nombre_servicio: str):
+        self.notificar(
+            'servicio_adapter_removido',
+            {
+                'tipo': tipo_servicio,
+                'nombre': nombre_servicio,
+            }
+        )
+
+    def agregar_decorador(self, nombre_decorador: str, precio: float):
+        self.notificar(
+            'servicio_decorator_agregado',
+            {
+                'nombre': nombre_decorador,
+                'precio': precio,
+            }
+        )
+
+    def remover_decorador(self, nombre_decorador: str):
+        self.notificar(
+            'servicio_decorator_removido',
+            {
+                'nombre': nombre_decorador,
             }
         )
 
