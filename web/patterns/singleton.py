@@ -2,10 +2,6 @@ import threading
 
 
 class ConfiguracionGlobal:
-    """
-    Singleton pattern — thread-safe.
-    Backed by the GlobalConfig database model (web/models.py).
-    """
     _instance = None
     _lock = threading.Lock()
 
@@ -18,7 +14,7 @@ class ConfiguracionGlobal:
         return cls._instance
 
     def _initialize_from_db(self):
-        from web.models import GlobalConfig          # ← import from web
+        from web.models import GlobalConfig                             
         config = GlobalConfig.load()
         self.moneda               = config.moneda
         self.porcentaje_impuestos = float(config.porcentaje_impuestos)
@@ -58,7 +54,7 @@ class ConfiguracionGlobal:
     def save_to_db(self, moneda=None, porcentaje_impuestos=None,
                    limite_asistentes=None, notificaciones_activas=None,
                    modo_mantenimiento=None):
-        from web.models import GlobalConfig          # ← import from web
+        from web.models import GlobalConfig                             
         config = GlobalConfig.load()
         if moneda                is not None: config.moneda               = moneda
         if porcentaje_impuestos  is not None: config.porcentaje_impuestos = porcentaje_impuestos

@@ -4,7 +4,7 @@
 
 <div style="max-width:720px;margin:0 auto;">
 
-  <!-- Breadcrumb -->
+  
   <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--gray-400);">
     <a href="{% url 'dashboard' %}" style="color:var(--gray-400);">Panel</a>
     <span>›</span>
@@ -13,7 +13,7 @@
     <span style="color:var(--gray-200);">Template Method</span>
   </div>
 
-  <!-- Header -->
+  
   <div class="card card-elevated" style="margin-bottom:1.5rem;padding:1.5rem;">
     <div style="display:flex;align-items:center;gap:.75rem;">
       <span style="font-size:1.8rem;">📋</span>
@@ -28,7 +28,7 @@
   </div>
 
   {% if exito is None %}
-  <!-- Pre-execution card -->
+  
   <div class="card card-elevated" style="margin-bottom:1.5rem;">
     <h3 style="font-size:1rem;color:var(--orange);margin-bottom:1rem;">⚙️ Pasos del proceso</h3>
     <ol style="padding-left:1.25rem;color:var(--gray-300);line-height:1.9;font-size:.9rem;">
@@ -48,7 +48,7 @@
   </div>
 
   {% elif exito %}
-  <!-- Success -->
+  
   <div style="background:rgba(6,214,160,0.08);border:1px solid rgba(6,214,160,0.3);
               border-radius:12px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;">
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;">
@@ -61,7 +61,7 @@
   </div>
 
   {% else %}
-  <!-- Failure -->
+  
   <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);
               border-radius:12px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;">
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;">
@@ -75,7 +75,7 @@
   {% endif %}
 
   {% if historial %}
-  <!-- Steps detail -->
+  
   <div class="card card-elevated">
     <h3 style="font-size:1rem;color:var(--purple-light);margin-bottom:1rem;">📊 Historial de pasos</h3>
     <div style="display:flex;flex-direction:column;gap:.6rem;">
@@ -104,7 +104,7 @@
   </div>
   {% endif %}
 
-  <!-- Back -->
+  
   <div style="margin-top:1.5rem;text-align:center;">
     <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary">
       ← Volver al evento

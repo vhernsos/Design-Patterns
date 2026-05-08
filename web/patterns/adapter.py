@@ -1,103 +1,50 @@
-"""
-Adapter Pattern — Adaptador
-============================
-Propósito:
-    Integrar sistemas externos (proveedores de catering, pasarelas de pago,
-    plataformas de streaming) con una interfaz uniforme, de modo que el
-    código cliente no dependa de la API concreta de cada proveedor.
-
-Estructura:
-    IServicioExterno (interfaz uniforme)
-        │
-        ├── Catering
-        │     ├── AdaptadorCateringProveedorA  → CateringProveedorA (sistema legado)
-        │     └── AdaptadorCateringProveedorB  → CateringProveedorB (sistema legado)
-        │
-        ├── Pagos
-        │     ├── AdaptadorStripe      → StripeAPI
-        │     ├── AdaptadorPayPal      → PayPalAPI
-        │     └── AdaptadorMercadoPago → MercadoPagoAPI
-        │
-        └── Streaming
-              ├── AdaptadorYouTube     → YouTubeStreamAPI
-              ├── AdaptadorVimeo       → VimeoStreamAPI
-              └── AdaptadorFacebookLive → FacebookLiveAPI
-
-Uso típico:
-    pasarela = AdaptadorStripe(api_key="sk_test_...")
-    pasarela.conectar()
-    resultado = pasarela.procesar_solicitud({"monto": 500, "moneda": "USD"})
-    estado    = pasarela.obtener_estado()
-"""
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 
 
-# ---------------------------------------------------------------------------
-# Interfaz uniforme para todos los servicios externos
-# ---------------------------------------------------------------------------
+                                                                             
+                                                     
+                                                                             
 
 class IServicioExterno(ABC):
-    """
-    Interfaz uniforme que todos los adaptadores deben implementar.
-    El código cliente (views.py, etc.) solo conoce esta interfaz,
-    nunca los sistemas externos directamente.
-    """
 
     @abstractmethod
     def conectar(self) -> bool:
-        """
-        Establece la conexión con el proveedor externo.
-        Devuelve True si la conexión fue exitosa.
-        """
 
     @abstractmethod
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Envía una solicitud al proveedor y devuelve el resultado.
-        El diccionario de entrada y salida depende del tipo de servicio
-        pero siempre incluye 'exito' (bool) y 'mensaje' (str).
-        """
 
     @abstractmethod
     def obtener_estado(self) -> Dict[str, Any]:
-        """
-        Consulta el estado actual del servicio/proveedor.
-        Devuelve un dict con al menos 'conectado' (bool) y 'proveedor' (str).
-        """
 
     @property
     def nombre_proveedor(self) -> str:
-        """Nombre legible del proveedor."""
         return self.__class__.__name__
 
 
-# ===========================================================================
-# SISTEMAS EXTERNOS SIMULADOS (APIs de terceros)
-# Representan las interfaces incompatibles que los Adapters deben adaptar.
-# ===========================================================================
+                                                                             
+                                                
+                                                                          
+                                                                             
 
-# ---------------------------------------------------------------------------
-# Catering — Proveedor A (API REST estilo antiguo)
-# ---------------------------------------------------------------------------
+                                                                             
+                                                  
+                                                                             
 
 class CateringProveedorA:
-    """Sistema legado de catering con su propia interfaz propietaria."""
 
     def __init__(self, endpoint: str = "https://catering-a.example.com"):
         self.endpoint = endpoint
         self._activo = False
 
     def iniciar_sesion(self, usuario: str, password: str) -> bool:
-        """Interfaz propia del Proveedor A para autenticarse."""
         self._activo = True
         print(f"[CateringProveedorA] Sesión iniciada en {self.endpoint}")
         return True
 
     def crear_pedido(self, evento_id: str, menu: str, comensales: int) -> dict:
-        """Crea un pedido de catering con la interfaz propia del proveedor."""
         return {
             "pedido_id": f"PA-{evento_id}-001",
             "estado": "confirmado",
@@ -110,10 +57,6 @@ class CateringProveedorA:
 
 
 class AdaptadorCateringProveedorA(IServicioExterno):
-    """
-    Adapta CateringProveedorA a la interfaz IServicioExterno.
-    Traduce conectar/procesar_solicitud/obtener_estado a la API del proveedor.
-    """
 
     def __init__(self, usuario: str = "admin", password: str = "secret",
                  endpoint: str = "https://catering-a.example.com"):
@@ -128,9 +71,6 @@ class AdaptadorCateringProveedorA(IServicioExterno):
         return self._conectado
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {evento_id, menu, comensales}
-        """
         if not self._conectado:
             return {"exito": False, "mensaje": "No conectado al Proveedor A"}
         pedido = self._proveedor.crear_pedido(
@@ -149,12 +89,11 @@ class AdaptadorCateringProveedorA(IServicioExterno):
         }
 
 
-# ---------------------------------------------------------------------------
-# Catering — Proveedor B (API GraphQL estilo moderno)
-# ---------------------------------------------------------------------------
+                                                                             
+                                                     
+                                                                             
 
 class CateringProveedorB:
-    """Sistema moderno de catering con API GraphQL."""
 
     def __init__(self, api_key: str = ""):
         self.api_key  = api_key
@@ -165,21 +104,18 @@ class CateringProveedorB:
         print("[CateringProveedorB] Autenticado correctamente")
         return self._sesion
 
-    def submitOrder(self, payload: dict) -> dict:   # noqa: N802
+    def submitOrder(self, payload: dict) -> dict:               
         return {
             "orderId": f"B-{payload.get('eventName', 'EVT')[:5].upper()}-099",
             "status":  "ACCEPTED",
             "estimatedDelivery": "2025-06-01T12:00:00",
         }
 
-    def getOrderStatus(self, order_id: str) -> dict:   # noqa: N802
+    def getOrderStatus(self, order_id: str) -> dict:               
         return {"orderId": order_id, "status": "PROCESSING", "session": self._sesion}
 
 
 class AdaptadorCateringProveedorB(IServicioExterno):
-    """
-    Adapta CateringProveedorB (API camelCase/GraphQL) a IServicioExterno.
-    """
 
     def __init__(self, api_key: str = "api_key_demo"):
         self._proveedor  = CateringProveedorB(api_key)
@@ -192,9 +128,6 @@ class AdaptadorCateringProveedorB(IServicioExterno):
         return self._sesion is not None
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {event_name, menu_type, guests}
-        """
         if not self._sesion:
             return {"exito": False, "mensaje": "Sin sesión activa"}
         respuesta = self._proveedor.submitOrder({
@@ -216,16 +149,15 @@ class AdaptadorCateringProveedorB(IServicioExterno):
         }
 
 
-# ===========================================================================
-# PASARELAS DE PAGO
-# ===========================================================================
+                                                                             
+                   
+                                                                             
 
-# ---------------------------------------------------------------------------
-# Stripe
-# ---------------------------------------------------------------------------
+                                                                             
+        
+                                                                             
 
 class StripeAPI:
-    """Simulación de la SDK de Stripe."""
 
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -242,7 +174,6 @@ class StripeAPI:
 
 
 class AdaptadorStripe(IServicioExterno):
-    """Adapta StripeAPI a IServicioExterno."""
 
     def __init__(self, api_key: str = "sk_test_demo"):
         self._stripe    = StripeAPI(api_key)
@@ -250,14 +181,11 @@ class AdaptadorStripe(IServicioExterno):
         self._intent_id = ""
 
     def conectar(self) -> bool:
-        # Stripe no requiere conexión explícita; validamos la clave aquí.
+                                                                         
         self._conectado = self._stripe.api_key.startswith("sk_")
         return self._conectado
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {monto (en centavos), moneda}
-        """
         intent = self._stripe.create_payment_intent(
             amount=int(datos.get("monto", 0) * 100),
             currency=datos.get("moneda", "usd"),
@@ -277,12 +205,11 @@ class AdaptadorStripe(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "Stripe", "ultimo_pago": estado}
 
 
-# ---------------------------------------------------------------------------
-# PayPal
-# ---------------------------------------------------------------------------
+                                                                             
+        
+                                                                             
 
 class PayPalAPI:
-    """Simulación del API REST de PayPal."""
 
     def __init__(self, client_id: str, client_secret: str):
         self.client_id     = client_id
@@ -302,7 +229,6 @@ class PayPalAPI:
 
 
 class AdaptadorPayPal(IServicioExterno):
-    """Adapta PayPalAPI a IServicioExterno."""
 
     def __init__(self, client_id: str = "CLIENT_DEMO", client_secret: str = "SECRET_DEMO"):
         self._paypal    = PayPalAPI(client_id, client_secret)
@@ -315,9 +241,6 @@ class AdaptadorPayPal(IServicioExterno):
         return self._conectado
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {monto, moneda}
-        """
         orden = self._paypal.create_order(
             amount=str(datos.get("monto", 0)),
             currency_code=datos.get("moneda", "USD"),
@@ -334,12 +257,11 @@ class AdaptadorPayPal(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "PayPal", "ultimo_pedido": self._order_id}
 
 
-# ---------------------------------------------------------------------------
-# MercadoPago
-# ---------------------------------------------------------------------------
+                                                                             
+             
+                                                                             
 
 class MercadoPagoAPI:
-    """Simulación del SDK de MercadoPago."""
 
     def __init__(self, access_token: str):
         self.access_token = access_token
@@ -353,7 +275,6 @@ class MercadoPagoAPI:
 
 
 class AdaptadorMercadoPago(IServicioExterno):
-    """Adapta MercadoPagoAPI a IServicioExterno."""
 
     def __init__(self, access_token: str = "TEST-TOKEN-DEMO"):
         self._mp          = MercadoPagoAPI(access_token)
@@ -361,14 +282,11 @@ class AdaptadorMercadoPago(IServicioExterno):
         self._pref_id     = ""
 
     def conectar(self) -> bool:
-        self._conectado = self._mp.access_token.startswith("TEST-") or \
+        self._conectado = self._mp.access_token.startswith("TEST-") or\
                           self._mp.access_token.startswith("APP_USR-")
         return self._conectado
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {titulo, monto, moneda}
-        """
         items = [{
             "title":        datos.get("titulo", "Evento"),
             "unit_price":   datos.get("monto", 0),
@@ -391,16 +309,15 @@ class AdaptadorMercadoPago(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "MercadoPago", "ultimo_pago": estado}
 
 
-# ===========================================================================
-# STREAMING
-# ===========================================================================
+                                                                             
+           
+                                                                             
 
-# ---------------------------------------------------------------------------
-# YouTube Live
-# ---------------------------------------------------------------------------
+                                                                             
+              
+                                                                             
 
 class YouTubeStreamAPI:
-    """Simulación de la YouTube Data API v3 para streaming en vivo."""
 
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -416,7 +333,6 @@ class YouTubeStreamAPI:
 
 
 class AdaptadorYouTube(IServicioExterno):
-    """Adapta YouTubeStreamAPI a IServicioExterno."""
 
     def __init__(self, api_key: str = "YT_API_KEY_DEMO"):
         self._yt            = YouTubeStreamAPI(api_key)
@@ -429,9 +345,6 @@ class AdaptadorYouTube(IServicioExterno):
         return self._conectado
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {titulo, fecha_inicio}
-        """
         broadcast = self._yt.broadcasts_insert(
             title=datos.get("titulo", "Evento en vivo"),
             scheduled_start=str(datos.get("fecha_inicio", "")),
@@ -450,12 +363,11 @@ class AdaptadorYouTube(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "YouTube Live", "broadcast_id": self._broadcast_id}
 
 
-# ---------------------------------------------------------------------------
-# Vimeo
-# ---------------------------------------------------------------------------
+                                                                             
+       
+                                                                             
 
 class VimeoStreamAPI:
-    """Simulación del API de Vimeo para streaming en vivo."""
 
     def __init__(self, access_token: str):
         self.access_token = access_token
@@ -468,7 +380,6 @@ class VimeoStreamAPI:
 
 
 class AdaptadorVimeo(IServicioExterno):
-    """Adapta VimeoStreamAPI a IServicioExterno."""
 
     def __init__(self, access_token: str = "VIMEO_TOKEN_DEMO"):
         self._vimeo       = VimeoStreamAPI(access_token)
@@ -481,9 +392,6 @@ class AdaptadorVimeo(IServicioExterno):
         return self._conectado
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {titulo}
-        """
         evento = self._vimeo.create_live_event(datos.get("titulo", "Evento"))
         self._event_uri = evento["uri"]
         return {
@@ -500,12 +408,11 @@ class AdaptadorVimeo(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "Vimeo", "evento": estado}
 
 
-# ---------------------------------------------------------------------------
-# Facebook Live
-# ---------------------------------------------------------------------------
+                                                                             
+               
+                                                                             
 
 class FacebookLiveAPI:
-    """Simulación del Graph API de Facebook para Live Video."""
 
     def __init__(self, page_access_token: str):
         self.page_access_token = page_access_token
@@ -522,7 +429,6 @@ class FacebookLiveAPI:
 
 
 class AdaptadorFacebookLive(IServicioExterno):
-    """Adapta FacebookLiveAPI a IServicioExterno."""
 
     def __init__(self, page_access_token: str = "FB_PAGE_TOKEN_DEMO"):
         self._fb         = FacebookLiveAPI(page_access_token)
@@ -535,9 +441,6 @@ class AdaptadorFacebookLive(IServicioExterno):
         return self._conectado
 
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        datos esperados: {titulo, descripcion}
-        """
         video = self._fb.create_live_video(
             title=datos.get("titulo", "Evento"),
             description=datos.get("descripcion", ""),
@@ -557,23 +460,19 @@ class AdaptadorFacebookLive(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "Facebook Live", "video": estado}
 
 
-# ---------------------------------------------------------------------------
-# Función de conveniencia: procesar con cualquier proveedor
-# ---------------------------------------------------------------------------
+                                                                             
+                                                           
+                                                                             
 
 def procesar_con_proveedor(proveedor: IServicioExterno, datos: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Función genérica que usa la interfaz uniforme.
-    El caller no necesita saber qué proveedor concreto está usando.
-    """
     if not proveedor.conectar():
         return {"exito": False, "mensaje": f"No se pudo conectar con {proveedor.nombre_proveedor}"}
     return proveedor.procesar_solicitud(datos)
 
 
-# ---------------------------------------------------------------------------
-# Ejemplo de uso (ejecutar directamente: python adapter.py)
-# ---------------------------------------------------------------------------
+                                                                             
+                                                           
+                                                                             
 
 if __name__ == "__main__":
     print("=" * 60)
@@ -607,18 +506,16 @@ if __name__ == "__main__":
         print(f"\n[{plataforma.nombre_proveedor}] → {resultado}")
 
 
-# ── Payment Gateway Adapters (Professional System) ───────────────────────────
+                                                                               
 import random
 from abc import ABC, abstractmethod
 from datetime import datetime
 
 
 class AdapterPasarela(ABC):
-    """Common interface for all payment gateways."""
 
     @abstractmethod
     def procesar(self, monto: float, datos_evento: dict) -> dict:
-        """Processes a payment and returns the result."""
         pass
 
     @abstractmethod
@@ -631,7 +528,6 @@ class AdapterPasarela(ABC):
 
 
 class StripeAdapter(AdapterPasarela):
-    """Adapter for Stripe payment gateway (simulated)."""
 
     def procesar(self, monto: float, datos_evento: dict) -> dict:
         return {
@@ -648,7 +544,6 @@ class StripeAdapter(AdapterPasarela):
 
 
 class PayPalAdapter(AdapterPasarela):
-    """Adapter for PayPal payment gateway (simulated)."""
 
     def procesar(self, monto: float, datos_evento: dict) -> dict:
         return {
@@ -665,7 +560,6 @@ class PayPalAdapter(AdapterPasarela):
 
 
 class MercadoPagoAdapter(AdapterPasarela):
-    """Adapter for MercadoPago payment gateway (simulated)."""
 
     def procesar(self, monto: float, datos_evento: dict) -> dict:
         return {
@@ -682,29 +576,21 @@ class MercadoPagoAdapter(AdapterPasarela):
 
 
 
-# ── Catering and Streaming Adapters (for ProveedorCatering/ProveedorStreaming) ─
+                                                                                 
 
 class AdapterCatering(ABC):
-    """
-    Interfaz para adaptadores de servicios de catering externos.
-    El código cliente usa esta interfaz sin conocer la API concreta del proveedor.
-    """
 
     @abstractmethod
     def obtener_menu(self, comensales: int) -> dict:
-        """Returns a menu proposal for the given number of guests."""
 
     @abstractmethod
     def obtener_precio(self) -> float:
-        """Returns the price of the catering service."""
 
     @abstractmethod
     def obtener_nombre(self) -> str:
-        """Returns the provider name."""
 
 
 class CateringPremiumAdapter(AdapterCatering):
-    """Adapter for the Premium Catering external service. Price: 5000€."""
 
     def obtener_menu(self, comensales: int) -> dict:
         return {
@@ -722,7 +608,6 @@ class CateringPremiumAdapter(AdapterCatering):
 
 
 class CateringEstandarAdapter(AdapterCatering):
-    """Adapter for the Standard Catering external service. Price: 3000€."""
 
     def obtener_menu(self, comensales: int) -> dict:
         return {
@@ -740,26 +625,18 @@ class CateringEstandarAdapter(AdapterCatering):
 
 
 class AdapterStreaming(ABC):
-    """
-    Interfaz para adaptadores de servicios de streaming externos.
-    El código cliente usa esta interfaz sin conocer la API concreta del proveedor.
-    """
 
     @abstractmethod
     def iniciar_transmision(self, titulo: str) -> dict:
-        """Starts a transmission and returns connection details."""
 
     @abstractmethod
     def obtener_precio(self) -> float:
-        """Returns the price of the streaming service."""
 
     @abstractmethod
     def obtener_nombre(self) -> str:
-        """Returns the provider name."""
 
 
 class Streaming4KAdapter(AdapterStreaming):
-    """Adapter for the 4K Premium Streaming external service. Price: 8000€."""
 
     def iniciar_transmision(self, titulo: str) -> dict:
         return {
@@ -778,7 +655,6 @@ class Streaming4KAdapter(AdapterStreaming):
 
 
 class StreamingHDAdapter(AdapterStreaming):
-    """Adapter for the HD Basic Streaming external service. Price: 4000€."""
 
     def iniciar_transmision(self, titulo: str) -> dict:
         return {
@@ -796,7 +672,7 @@ class StreamingHDAdapter(AdapterStreaming):
         return "Streaming HD Básico"
 
 
-# Registry: maps Pasarela.tipo to an AdapterPasarela instance
+                                                             
 _ADAPTER_MAP: dict = {
     'stripe':      StripeAdapter,
     'paypal':      PayPalAdapter,
@@ -805,7 +681,6 @@ _ADAPTER_MAP: dict = {
 
 
 def get_adapter_for_pasarela(tipo: str) -> AdapterPasarela:
-    """Returns the appropriate AdapterPasarela instance for the given gateway type."""
     cls = _ADAPTER_MAP.get(tipo)
     if cls is None:
         raise ValueError(f"No adapter found for gateway type: {tipo}")

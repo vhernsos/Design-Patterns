@@ -62,7 +62,7 @@ class Evento(models.Model):
         null=True, blank=True, related_name='clones'
     )
 
-    # ── Composite pattern fields ──────────────────────────────────────────────
+                                                                                
     es_compuesto = models.BooleanField(default=False)
     evento_padre = models.ForeignKey(
         'self', on_delete=models.SET_NULL,
@@ -70,7 +70,7 @@ class Evento(models.Model):
     )
     presupuesto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    # ── External services (Adapter pattern) ──────────────────────────────────
+                                                                               
     catering_contratado = models.ForeignKey(
         'ProveedorCatering', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='eventos'
@@ -80,19 +80,19 @@ class Evento(models.Model):
         null=True, blank=True, related_name='eventos'
     )
 
-    # ── Payment fields ────────────────────────────────────────────────────────
+                                                                                
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(null=True, blank=True)
     monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
-    # ── Decorator pattern fields ──────────────────────────────────────────────
+                                                                                
     decoradores = models.JSONField(
         default=list,
         blank=True,
         help_text="Lista de claves de decoradores aplicados al evento",
     )
 
-    # ── Template Method pattern fields ────────────────────────────────────────
+                                                                                
     tipo_evento = models.CharField(
         max_length=50,
         choices=[
@@ -107,7 +107,7 @@ class Evento(models.Model):
     )
     confirmado = models.BooleanField(default=False)
 
-    # Campos específicos por tipo de evento
+                                           
     ponentes = models.JSONField(default=list, blank=True, help_text="Lista de ponentes (Conferencia)")
     ceremonia_tipo = models.CharField(max_length=100, blank=True, help_text="Tipo de ceremonia (Boda)")
     artistas = models.JSONField(default=list, blank=True, help_text="Lista de artistas (Concierto)")
@@ -117,26 +117,22 @@ class Evento(models.Model):
     def __str__(self):
         return self.nombre
 
-    # ── Composite helpers ─────────────────────────────────────────────────────
+                                                                                
 
     def es_hoja(self) -> bool:
-        """True if this event has no sub-events (leaf node in Composite tree)."""
         return not self.subeventos.exists()
 
     def obtener_presupuesto_efectivo(self) -> Decimal:
-        """Return the usable budget for this event."""
         if self.evento_padre_id:
             return Decimal('0')
         return self.presupuesto or Decimal('0')
 
     def calcular_presupuesto_total(self) -> float:
-        """Return the root event budget; sub-events do not own a budget."""
         if self.evento_padre_id:
             raise ValueError("Los subeventos no tienen presupuesto independiente")
         return self.obtener_presupuesto_efectivo()
 
     def calcular_duracion_total(self) -> float:
-        """Recursively sum duration (hours) of self and all descendants."""
         delta = self.fecha_fin - self.fecha_inicio
         horas = delta.total_seconds() / 3600
         for sub in self.subeventos.all():
@@ -144,7 +140,6 @@ class Evento(models.Model):
         return round(horas, 2)
 
     def obtener_capacidad_maxima(self) -> int:
-        """Return maximum capacity across self and all descendants."""
         cap = self.max_asistentes
         for sub in self.subeventos.all():
             sub_cap = sub.obtener_capacidad_maxima()
@@ -153,7 +148,6 @@ class Evento(models.Model):
         return cap
 
     def calcular_monto_total(self):
-        """Calculates the full event amount including adapters and decorators."""
         from web.patterns.calculator import CalculadoraCostes
 
         return CalculadoraCostes.calcular_costo_total(self)['costo_total']
@@ -188,7 +182,6 @@ class PlantillaEvento(models.Model):
 
 
 class GlobalConfig(models.Model):
-    """Database-backed storage for the Singleton pattern."""
     moneda = models.CharField(max_length=10, default='USD')
     porcentaje_impuestos = models.DecimalField(
         max_digits=5, decimal_places=2, default=16.00
@@ -201,7 +194,7 @@ class GlobalConfig(models.Model):
         verbose_name = 'Global Configuration'
 
     def save(self, *args, **kwargs):
-        self.pk = 1                   # enforce single row
+        self.pk = 1                                       
         super().save(*args, **kwargs)
 
     @classmethod
@@ -213,10 +206,9 @@ class GlobalConfig(models.Model):
         return "Global Configuration"
 
 
-# ── Adapter pattern: Catering and Streaming providers ────────────────────────
+                                                                               
 
 class ProveedorCatering(models.Model):
-    """Available catering providers that can be contracted for an event."""
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
@@ -226,7 +218,6 @@ class ProveedorCatering(models.Model):
 
 
 class ProveedorStreaming(models.Model):
-    """Available streaming providers that can be contracted for an event."""
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
@@ -235,10 +226,9 @@ class ProveedorStreaming(models.Model):
         return f"{self.nombre} (€{self.precio:,.0f})"
 
 
-# ── Adapter pattern: external service providers ───────────────────────────────
+                                                                                
 
 class ProveedorServicio(models.Model):
-    """Stores credentials and metadata for external service providers."""
 
     TIPO_CHOICES = [
         ('catering_a',   'Catering – Proveedor A'),
@@ -262,7 +252,6 @@ class ProveedorServicio(models.Model):
 
     @property
     def categoria(self):
-        """Returns 'catering', 'pago', or 'streaming' based on tipo."""
         if self.tipo.startswith('catering'):
             return 'catering'
         if self.tipo in ('stripe', 'paypal', 'mercadopago'):
@@ -271,7 +260,6 @@ class ProveedorServicio(models.Model):
 
 
 class ServicioContratado(models.Model):
-    """Records when an event contracts an external service via an Adapter."""
 
     ESTADO_CHOICES = [
         ('pendiente',   'Pendiente'),
@@ -295,10 +283,9 @@ class ServicioContratado(models.Model):
     def __str__(self):
         return f"{self.proveedor.nombre} → {self.evento.nombre} [{self.estado}]"
 
-# ── Payment gateway models ─────────────────────────────────────────────────────
+                                                                                 
 
 class Pasarela(models.Model):
-    """Represents a payment gateway (Stripe, PayPal, MercadoPago)."""
 
     TIPO_CHOICES = [
         ('stripe',       'Stripe'),
@@ -317,7 +304,6 @@ class Pasarela(models.Model):
 
 
 class Transaccion(models.Model):
-    """Records a payment transaction for an event."""
 
     ESTADO_CHOICES = [
         ('pendiente',  'Pendiente'),
@@ -341,10 +327,9 @@ class Transaccion(models.Model):
         return f"{self.pasarela} — {self.evento.nombre} [{self.estado}]"
 
 
-# ── Observer pattern: notification history ────────────────────────────────────
+                                                                                
 
 class HistorialNotificacion(models.Model):
-    """Registra todas las notificaciones enviadas por el patrón Observer"""
 
     TIPO_NOTIFICACION = [
         ('evento_creado',       'Evento Creado'),

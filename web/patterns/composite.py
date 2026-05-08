@@ -1,29 +1,3 @@
-"""
-Composite Pattern — Composición
-================================
-Propósito:
-    Modelar jerarquías de eventos complejos donde un evento puede contener
-    sub-eventos (festivales, cumbres, bodas multi-parte, etc.).
-    Permite tratar EventoSimple y EventoCompuesto de forma uniforme,
-    calculando presupuesto, duración y capacidad de manera recursiva.
-
-Estructura:
-    ComponenteEvento (interfaz)
-        ├── EventoSimple    → hoja del árbol (no tiene hijos)
-        └── EventoCompuesto → nodo del árbol (contiene otros componentes)
-
-Uso típico:
-    # Festival de 3 días
-    festival = EventoCompuesto("Festival Rock 2025")
-    dia1 = EventoCompuesto("Día 1")
-    dia1.agregar(EventoSimple("Concierto A", presupuesto=3000, duracion_horas=2, capacidad=500))
-    dia1.agregar(EventoSimple("Concierto B", presupuesto=4000, duracion_horas=2, capacidad=500))
-    festival.agregar(dia1)
-
-    print(festival.calcular_presupuesto())  # suma recursiva
-    print(festival.calcular_duracion())     # horas totales
-    festival.mover_fechas(timedelta(days=7)) # cascada a todos los hijos
-"""
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
@@ -31,69 +5,48 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 
-# ---------------------------------------------------------------------------
-# Interfaz Componente (nodo hoja o nodo compuesto)
-# ---------------------------------------------------------------------------
+                                                                             
+                                                  
+                                                                             
 
 class ComponenteEvento(ABC):
-    """
-    Interfaz uniforme para EventoSimple y EventoCompuesto.
-    Define las operaciones que pueden aplicarse a cualquier nodo del árbol,
-    independientemente de si es hoja o nodo intermedio.
-    """
 
     def __init__(self, nombre: str):
         self.nombre = nombre
 
-    # --- Operaciones de cálculo (recursivas en EventoCompuesto) ---
+                                                                    
 
     @abstractmethod
     def calcular_presupuesto(self) -> float:
-        """Devuelve el presupuesto total (suma recursiva para compuestos)."""
 
     @abstractmethod
     def calcular_duracion(self) -> float:
-        """Devuelve la duración total en horas."""
 
     @abstractmethod
     def obtener_capacidad(self) -> int:
-        """
-        Devuelve la capacidad máxima de asistentes.
-        Para compuestos devuelve el máximo entre sus hijos.
-        """
 
-    # --- Operaciones en cascada ---
+                                    
 
     @abstractmethod
     def mover_fechas(self, delta: timedelta) -> None:
-        """Desplaza las fechas del evento (y de todos sus hijos) en `delta`."""
 
-    # --- Información ---
+                         
 
     @abstractmethod
     def obtener_resumen(self, nivel: int = 0) -> str:
-        """
-        Devuelve una representación textual en árbol.
-        `nivel` controla la indentación (se incrementa en cada nivel del árbol).
-        """
 
     @abstractmethod
     def es_compuesto(self) -> bool:
-        """Devuelve True si el nodo puede contener hijos."""
 
     def __str__(self) -> str:
         return self.obtener_resumen()
 
 
-# ---------------------------------------------------------------------------
-# EventoSimple — nodo hoja
-# ---------------------------------------------------------------------------
+                                                                             
+                          
+                                                                             
 
 class EventoSimple(ComponenteEvento):
-    """
-    Nodo hoja: representa un evento atómico sin sub-eventos.
-    Almacena sus propios datos de presupuesto, duración y capacidad.
-    """
 
     def __init__(
         self,
@@ -115,7 +68,6 @@ class EventoSimple(ComponenteEvento):
 
     @property
     def fecha_fin(self) -> Optional[datetime]:
-        """Calcula la fecha de fin a partir de inicio y duración."""
         if self.fecha_inicio:
             return self.fecha_inicio + timedelta(hours=self.duracion_horas)
         return None
@@ -130,7 +82,6 @@ class EventoSimple(ComponenteEvento):
         return self.capacidad
 
     def mover_fechas(self, delta: timedelta) -> None:
-        """Desplaza la fecha de inicio en `delta`."""
         if self.fecha_inicio:
             self.fecha_inicio += delta
 
@@ -149,15 +100,11 @@ class EventoSimple(ComponenteEvento):
         )
 
 
-# ---------------------------------------------------------------------------
-# EventoCompuesto — nodo interno
-# ---------------------------------------------------------------------------
+                                                                             
+                                
+                                                                             
 
 class EventoCompuesto(ComponenteEvento):
-    """
-    Nodo compuesto: puede contener EventoSimples u otros EventoCompuestos.
-    Delega los cálculos recursivamente a sus hijos.
-    """
 
     def __init__(
         self,
@@ -170,54 +117,38 @@ class EventoCompuesto(ComponenteEvento):
         self.fecha_inicio = fecha_inicio
         self._hijos: List[ComponenteEvento] = []
 
-    # --- Gestión de hijos ---
+                              
 
     def agregar(self, componente: ComponenteEvento) -> 'EventoCompuesto':
-        """
-        Añade un hijo al evento compuesto.
-        Devuelve self para permitir encadenamiento fluido.
-        """
         self._hijos.append(componente)
         return self
 
     def eliminar(self, componente: ComponenteEvento) -> bool:
-        """Elimina un hijo. Devuelve True si fue encontrado y eliminado."""
         if componente in self._hijos:
             self._hijos.remove(componente)
             return True
         return False
 
     def obtener_hijos(self) -> List[ComponenteEvento]:
-        """Devuelve la lista de hijos directos (no recursiva)."""
         return list(self._hijos)
 
     def esta_vacio(self) -> bool:
         return len(self._hijos) == 0
 
-    # --- Operaciones recursivas ---
+                                    
 
     def calcular_presupuesto(self) -> float:
-        """Suma recursiva de los presupuestos de todos los hijos."""
         return sum(hijo.calcular_presupuesto() for hijo in self._hijos)
 
     def calcular_duracion(self) -> float:
-        """Suma recursiva de las duraciones de todos los hijos."""
         return sum(hijo.calcular_duracion() for hijo in self._hijos)
 
     def obtener_capacidad(self) -> int:
-        """
-        Devuelve la capacidad máxima entre todos los hijos.
-        (El compuesto puede alojar tantos asistentes como su hijo más grande.)
-        """
         if not self._hijos:
             return 0
         return max(hijo.obtener_capacidad() for hijo in self._hijos)
 
     def mover_fechas(self, delta: timedelta) -> None:
-        """
-        Desplaza en cascada las fechas de este nodo y todos sus descendientes.
-        Ejemplo: mover un festival 7 días afecta todos sus conciertos.
-        """
         if self.fecha_inicio:
             self.fecha_inicio += delta
         for hijo in self._hijos:
@@ -227,7 +158,6 @@ class EventoCompuesto(ComponenteEvento):
         return True
 
     def obtener_resumen(self, nivel: int = 0) -> str:
-        """Representación en árbol con indentación."""
         sangria    = "  " * nivel
         inicio_str = self.fecha_inicio.strftime("%Y-%m-%d") if self.fecha_inicio else "Sin fecha"
         lineas = [
@@ -242,39 +172,30 @@ class EventoCompuesto(ComponenteEvento):
         return "\n".join(lineas)
 
     def contar_eventos(self) -> int:
-        """Cuenta el número total de eventos (hojas) en el árbol."""
         total = 0
         for hijo in self._hijos:
             if hijo.es_compuesto():
-                total += hijo.contar_eventos()   # type: ignore[attr-defined]
+                total += hijo.contar_eventos()                               
             else:
                 total += 1
         return total
 
     def buscar(self, nombre: str) -> Optional[ComponenteEvento]:
-        """
-        Busca recursivamente un componente por nombre exacto.
-        Devuelve el primero que coincida o None.
-        """
         for hijo in self._hijos:
             if hijo.nombre == nombre:
                 return hijo
             if hijo.es_compuesto():
-                encontrado = hijo.buscar(nombre)   # type: ignore[attr-defined]
+                encontrado = hijo.buscar(nombre)                               
                 if encontrado:
                     return encontrado
         return None
 
 
-# ---------------------------------------------------------------------------
-# Funciones de conveniencia: ejemplos de estructuras de eventos
-# ---------------------------------------------------------------------------
+                                                                             
+                                                               
+                                                                             
 
 def crear_festival_musica(nombre: str, fecha_inicio: datetime) -> EventoCompuesto:
-    """
-    Crea un festival de 3 días con conciertos diarios.
-    Ejemplo de estructura jerárquica de 3 niveles.
-    """
     festival = EventoCompuesto(nombre, fecha_inicio=fecha_inicio)
 
     for num_dia in range(1, 4):
@@ -301,9 +222,6 @@ def crear_festival_musica(nombre: str, fecha_inicio: datetime) -> EventoCompuest
 
 
 def crear_cumbre_empresarial(nombre: str, fecha_inicio: datetime) -> EventoCompuesto:
-    """
-    Crea una cumbre empresarial con keynotes y talleres paralelos.
-    """
     cumbre = EventoCompuesto(nombre, fecha_inicio=fecha_inicio)
 
     keynotes = EventoCompuesto("Keynotes", fecha_inicio=fecha_inicio.replace(hour=9))
@@ -322,9 +240,6 @@ def crear_cumbre_empresarial(nombre: str, fecha_inicio: datetime) -> EventoCompu
 
 
 def crear_boda(nombre: str, fecha_inicio: datetime) -> EventoCompuesto:
-    """
-    Crea una boda con ceremonia, recepción y desayuno al día siguiente.
-    """
     boda = EventoCompuesto(nombre, fecha_inicio=fecha_inicio)
 
     boda.agregar(EventoSimple(
@@ -345,9 +260,9 @@ def crear_boda(nombre: str, fecha_inicio: datetime) -> EventoCompuesto:
     return boda
 
 
-# ---------------------------------------------------------------------------
-# Ejemplo de uso (ejecutar directamente: python composite.py)
-# ---------------------------------------------------------------------------
+                                                                             
+                                                             
+                                                                             
 
 if __name__ == "__main__":
     print("=" * 70)

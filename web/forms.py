@@ -151,7 +151,6 @@ class EventoUpdateForm(forms.ModelForm):
         }
 
 class SubEventoForm(forms.ModelForm):
-    """Form for adding a sub-event under an existing Composite event."""
 
     class Meta:
         model = Evento

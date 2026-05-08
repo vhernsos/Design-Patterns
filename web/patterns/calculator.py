@@ -4,7 +4,6 @@ from .decorator import DECORADORES_DISPONIBLES
 
 
 class CalculadoraCostes:
-    """Calcula el gasto del evento y el presupuesto restante."""
 
     @staticmethod
     def calcular_costo_total(evento) -> dict:

@@ -2,10 +2,6 @@ import copy
 
 
 class EventoPrototype:
-    """
-    Prototype pattern.
-    Load an existing Evento from the DB, clone it, tweak it, save it back.
-    """
 
     def __init__(self, evento_db=None):
         if evento_db:
@@ -65,7 +61,6 @@ class EventoPrototype:
             self.config = {}
 
     def clonar(self) -> 'EventoPrototype':
-        """Return a deep copy of this prototype."""
         return copy.deepcopy(self)
 
     def set_nombre(self, nombre: str) -> 'EventoPrototype':
@@ -90,8 +85,7 @@ class EventoPrototype:
         return self
 
     def save_to_db(self, organizador):
-        """Persist the clone as a new Evento row and return it."""
-        from web.models import Evento, ConfiguracionEvento   # ← import from web
+        from web.models import Evento, ConfiguracionEvento                      
 
         evento = Evento.objects.create(
             nombre          = self.nombre,
@@ -129,11 +123,9 @@ class EventoPrototype:
 
 
 class PrototypeEventos:
-    """Servicio de clonación para eventos de negocio."""
 
     @staticmethod
     def clonar_evento(evento_original, organizador, **overrides):
-        """Clone only root, original events and copy their full sub-event tree."""
         if evento_original.evento_padre_id is not None:
             raise ValueError(
                 "No se pueden clonar subeventos. Solo se pueden clonar eventos principales."

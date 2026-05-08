@@ -1,5 +1,5 @@
 import os
 from django.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')  # ← must say config
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')                     
 application = get_asgi_application()

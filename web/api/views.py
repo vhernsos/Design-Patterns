@@ -10,21 +10,18 @@ from ..serializers import (
 
 
 class TipoEventoViewSet(viewsets.ReadOnlyModelViewSet):
-    """Lista y detalle de tipos de evento (solo lectura)."""
     queryset = TipoEvento.objects.all()
     serializer_class = TipoEventoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
 class UbicacionViewSet(viewsets.ModelViewSet):
-    """CRUD completo de ubicaciones."""
     queryset = Ubicacion.objects.all()
     serializer_class = UbicacionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
 class EventoViewSet(viewsets.ModelViewSet):
-    """CRUD completo de eventos del usuario autenticado."""
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['tipo']
@@ -47,7 +44,6 @@ class EventoViewSet(viewsets.ModelViewSet):
 
 
 class EventoConfiguracionViewSet(viewsets.ModelViewSet):
-    """Gestión de configuraciones de eventos del usuario autenticado."""
     serializer_class = ConfiguracionEventoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
