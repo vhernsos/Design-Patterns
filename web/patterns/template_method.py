@@ -94,10 +94,11 @@ class ProcesoEventoTemplate(ABC):
 
         costos = CalculadoraCostes.calcular_costo_total(self.evento)
         return {
-            'costo_base': float(costos['presupuesto_base']),
+            'costo_base': float(costos['presupuesto_limite']),
             'costo_adapter': float(costos['costo_adapter_total']),
             'costo_decorator': float(costos['costo_decorator_total']),
-            'costo_total': float(costos['costo_total']),
+            'costo_total': float(costos['costos_totales']),
+            'presupuesto_restante': float(costos['restante']),
             'desglose_completo': costos['desglose'],
         }
 
