@@ -19,10 +19,7 @@ from .patterns.chain_of_responsibility import (
     DatosValidacion, construir_cadena_completa,
 )
 from .patterns.bridge import (
-    EventoReporte,
-    ReporteResumen, ReporteDetallado, ReporteFinanciero,
-    ReporteCompleto, ReporteEventoJSON,
-    FormatoPDF, FormatoCSV, FormatoHTML, FormatoEmail, FormatoJSON,
+    crear_reporte,
 )
 from .patterns.adapter import (
     AdaptadorCateringProveedorA, AdaptadorCateringProveedorB,
@@ -141,7 +138,7 @@ def event_detail(request, pk):
     pasarelas = Pasarela.objects.filter(activa=True)
 
     costos = CalculadoraCostes.calcular_costo_total(evento)
-    monto_total = costos['costo_total']
+    monto_total = costos['costos_totales']
 
     # ── Decorator Pattern ─────────────────────────────────────────────────────
     decoradores_activos = evento.decoradores or []
@@ -192,30 +189,20 @@ def event_update(request, pk):
             evento_id=evento.evento_padre_id,
             subevento_id=evento.pk,
         )
-    config_obj, _ = ConfiguracionEvento.objects.get_or_create(evento=evento)
 
     if request.method == 'POST':
         presupuesto_anterior = evento.presupuesto
         catering_anterior = evento.catering_contratado
         streaming_anterior = evento.streaming_contratado
-        decoradores_anteriores = list(evento.decoradores or [])
 
         form = EventoUpdateForm(request.POST, instance=evento)
-        config_form = ConfiguracionEventoForm(request.POST, instance=config_obj)
-        if form.is_valid() and config_form.is_valid():
-            # Sub-events are exempt from Chain of Responsibility validation
+        if form.is_valid():
             if evento.evento_padre is not None:
                 form.save()
-                config_form.save()
                 messages.success(request, f'Sub-evento "{evento.nombre}" actualizado exitosamente.')
                 return redirect('event_detail', pk=evento.pk)
 
-            # ── Chain of Responsibility: validate before saving ───────────
-            ubicacion_obj = form.cleaned_data.get('ubicacion')
-            merged = {**form.cleaned_data, **config_form.cleaned_data}
-            datos_validacion = _construir_datos_validacion(
-                merged, ubicacion_obj=ubicacion_obj, exclude_evento_id=evento.pk
-            )
+            datos_validacion = _construir_datos_validacion(form.cleaned_data, exclude_evento_id=evento.pk)
             resultado = construir_cadena_completa().manejar(datos_validacion)
             if not resultado.aprobado:
                 messages.error(
@@ -224,7 +211,6 @@ def event_update(request, pk):
                 )
             else:
                 evento = form.save()
-                config_form.save()
                 observable = construir_observable_con_observadores(evento)
                 cambios_notificados = 0
 
@@ -309,36 +295,6 @@ def event_update(request, pk):
                         )
                         cambios_notificados += 1
 
-                decoradores_nuevos = list(evento.decoradores or [])
-                decoradores_agregados = set(decoradores_nuevos) - set(decoradores_anteriores)
-                decoradores_removidos = set(decoradores_anteriores) - set(decoradores_nuevos)
-
-                for decorador_key in decoradores_agregados:
-                    decorador = DECORADORES_DISPONIBLES.get(decorador_key)
-                    if decorador:
-                        observable.agregar_decorador(decorador.NOMBRE, float(decorador.PRECIO))
-                        HistorialNotificacion.objects.create(
-                            evento=evento,
-                            tipo='evento_actualizado',
-                            mensaje=f'Extra agregado: {decorador.NOMBRE}',
-                            detalles={'nombre': decorador.NOMBRE, 'precio': str(decorador.PRECIO)},
-                            enviado_a='Email, Proveedor, Analítica',
-                        )
-                        cambios_notificados += 1
-
-                for decorador_key in decoradores_removidos:
-                    decorador = DECORADORES_DISPONIBLES.get(decorador_key)
-                    if decorador:
-                        observable.remover_decorador(decorador.NOMBRE)
-                        HistorialNotificacion.objects.create(
-                            evento=evento,
-                            tipo='evento_actualizado',
-                            mensaje=f'Extra removido: {decorador.NOMBRE}',
-                            detalles={'nombre': decorador.NOMBRE},
-                            enviado_a='Email, Proveedor, Analítica',
-                        )
-                        cambios_notificados += 1
-
                 if cambios_notificados == 0:
                     HistorialNotificacion.objects.create(
                         evento=evento,
@@ -351,14 +307,9 @@ def event_update(request, pk):
                 return redirect('event_detail', pk=evento.pk)
     else:
         form = EventoUpdateForm(instance=evento)
-        config_form = ConfiguracionEventoForm(instance=config_obj)
-    return render(request, 'web/event_form.html', {
-        'form':        form,
-        'config_form': config_form,
-        'title':       'Editar Evento',
-        'evento':      evento,
-        'proveedores_catering':  ProveedorCatering.objects.all(),
-        'proveedores_streaming': ProveedorStreaming.objects.all(),
+    return render(request, 'web/event_update.html', {
+        'form': form,
+        'evento': evento,
     })
 
 
@@ -821,75 +772,39 @@ def editar_subevento(request, evento_id, subevento_id):
 
 @login_required
 def generar_reporte(request, pk, tipo, formato):
-    """
-    Generate a report for an event using the Bridge pattern.
-    tipo: 'resumen' | 'detallado' | 'financiero'
-    formato: 'pdf' | 'csv' | 'html' | 'email'
-    For 'pdf' formato, generates a real PDF using reportlab via ReporteCompleto.
-    """
-    evento = get_object_or_404(
-        Evento.objects.select_related('tipo', 'ubicacion', 'organizador')
-                      .prefetch_related('servicios', 'subeventos__configuracion',
-                                        'subeventos__tipo', 'subeventos__ubicacion'),
-        pk=pk,
-    )
+    evento = get_object_or_404(Evento, pk=pk)
 
-    if formato == 'pdf':
-        # Use ReporteCompleto with real reportlab PDF generation.
-        # Falls back to a downloadable HTML report if reportlab is not installed.
-        reporte = ReporteCompleto()
-        resultado = reporte.generar_pdf(evento)
-        # HTML fallback: starts with the HTML doctype declaration
-        if resultado.startswith(b'<!DOCTYPE'):
-            response = HttpResponse(resultado, content_type='text/html; charset=utf-8')
-            response['Content-Disposition'] = (
-                f'inline; filename="reporte_completo_{evento.pk}.html"'
-            )
+    try:
+        reporte = crear_reporte(tipo, formato)
+        contenido = reporte.generar(evento)
+
+        if formato == 'json':
+            response = HttpResponse(contenido, content_type='application/json')
+            response['Content-Disposition'] = f'attachment; filename=\"evento_{evento.id}.json\"'
+        elif formato == 'csv':
+            response = HttpResponse(contenido, content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename=\"evento_{evento.id}.csv\"'
+        elif formato == 'html':
+            response = HttpResponse(contenido, content_type='text/html')
+        elif formato == 'pdf':
+            response = HttpResponse(contenido, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename=\"evento_{evento.id}.pdf\"'
+        elif formato == 'email':
+            response = HttpResponse(contenido, content_type='text/plain')
         else:
-            response = HttpResponse(resultado, content_type='application/pdf')
-            response['Content-Disposition'] = (
-                f'attachment; filename="reporte_completo_{evento.pk}.pdf"'
-            )
+            raise ValueError(f'Formato no soportado: {formato}')
+
         return response
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('event_detail', pk=evento.pk)
 
-    # Other formats use the original Bridge abstraction
-    evento_dto = EventoReporte.desde_modelo(evento)
-    formato_map = {
-        'csv':   FormatoCSV(),
-        'html':  FormatoHTML(),
-        'email': FormatoEmail(),
-    }
-    reporte_map = {
-        'resumen':    ReporteResumen,
-        'detallado':  ReporteDetallado,
-        'financiero': ReporteFinanciero,
-    }
 
-    fmt_obj = formato_map.get(formato, FormatoHTML())
-    reporte_cls = reporte_map.get(tipo, ReporteResumen)
-    reporte = reporte_cls(fmt_obj)
-    contenido = reporte.generar(evento_dto)
-
-    if formato == 'csv':
-        response = HttpResponse(contenido, content_type='text/csv; charset=utf-8')
-        response['Content-Disposition'] = (
-            f'attachment; filename="reporte_{tipo}_{evento.pk}.csv"'
-        )
-        return response
-    elif formato == 'html':
-        return render(request, 'web/reportes.html', {
-            'evento': evento,
-            'contenido_html': contenido,
-            'tipo': tipo,
-            'formato': formato,
-        })
-    else:  # email
-        return render(request, 'web/reportes.html', {
-            'evento': evento,
-            'contenido_email': contenido,
-            'tipo': tipo,
-            'formato': formato,
-        })
+@login_required
+def descargar_reporte(request, pk):
+    tipo_reporte = request.GET.get('tipo', 'resumen')
+    formato = request.GET.get('formato', 'json')
+    return generar_reporte(request, pk, tipo_reporte, formato)
 
 
 # ── ADAPTER: External service providers ──────────────────────────────────────
@@ -1156,7 +1071,7 @@ def procesar_pago(request, evento_id):
         return redirect('event_detail', pk=evento_id)
 
     pasarelas = Pasarela.objects.filter(activa=True)
-    monto_total = CalculadoraCostes.calcular_costo_total(evento)['costo_total']
+    monto_total = CalculadoraCostes.calcular_costo_total(evento)['costos_totales']
 
     if request.method == 'POST':
         pasarela_id = request.POST.get('pasarela_id')
@@ -1264,7 +1179,6 @@ def detalle_transaccion(request, transaccion_id):
 
 @login_required
 def evento_api_json(request, pk):
-    """Returns an event in JSON format using the Bridge pattern (ReporteEventoJSON)."""
     evento = get_object_or_404(
         Evento.objects
               .select_related('tipo', 'ubicacion', 'organizador',
@@ -1276,10 +1190,8 @@ def evento_api_json(request, pk):
     if evento.organizador != request.user and not request.user.is_staff:
         return JsonResponse({"error": "No tienes permiso"}, status=403)
 
-    reporte = ReporteEventoJSON()
-    json_data = reporte.generar_json(evento)
-
-    return JsonResponse(json.loads(json_data), safe=False)
+    reporte = crear_reporte('completo', 'json')
+    return HttpResponse(reporte.generar(evento), content_type='application/json')
 
 
 # ── DECORATOR: Toggle decorator extras on an event ────────────────────────────
