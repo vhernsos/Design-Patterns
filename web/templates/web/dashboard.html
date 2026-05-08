@@ -2,7 +2,7 @@
 {% block title %}Panel de Control — EventManager{% endblock %}
 {% block content %}
 
-<!-- Hero -->
+
 <div class="hero-banner">
   <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1920&q=80"
        alt="Events hero">
@@ -13,7 +13,7 @@
   </div>
 </div>
 
-<!-- Stats -->
+
 <div class="stats-bar">
   <div class="stat-card">
     <div class="stat-number">{{ eventos.count }}</div>
@@ -24,12 +24,12 @@
     <div class="stat-label">Mostrando Ahora</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number">{{ tipos.count }}</div>
+    <div class="stat-number">{{ cantidad_tipos }}</div>
     <div class="stat-label">Tipos de Eventos</div>
   </div>
 </div>
 
-<!-- Page header -->
+
 <div class="page-header">
   <div>
     <h2 class="section-title">Todos los Eventos</h2>
@@ -40,19 +40,17 @@
   </div>
 </div>
 
-<!-- Filters -->
+
 <div class="filter-bar">
   <form method="get" style="display:contents;">
     <div class="filter-group">
       <span class="filter-label">Tipo</span>
-      <select name="tipo" class="form-control" style="min-width:140px;">
+      <select name="tipo" id="tipo_evento_filter" class="form-control" style="min-width:140px;">
         <option value="">Todos los tipos</option>
-        {% for t in tipos %}
-        <option value="{{ t.pk }}"
-          {% if request.GET.tipo == t.pk|stringformat:"s" %}selected{% endif %}>
-          {{ t.nombre }}
-        </option>
-        {% endfor %}
+        <option value="boda" {% if request.GET.tipo == 'boda' %}selected{% endif %}>Boda</option>
+        <option value="concierto" {% if request.GET.tipo == 'concierto' %}selected{% endif %}>Concierto</option>
+        <option value="teatro" {% if request.GET.tipo == 'teatro' %}selected{% endif %}>Teatro</option>
+        <option value="conferencia" {% if request.GET.tipo == 'conferencia' %}selected{% endif %}>Conferencia</option>
       </select>
     </div>
     <div class="filter-group">
@@ -69,7 +67,7 @@
   </form>
 </div>
 
-<!-- Events grid -->
+
 {% if eventos %}
 <div class="events-grid">
   {% for e in eventos %}

@@ -11,7 +11,7 @@ urlpatterns = [
     path('events/<int:pk>/clone/',    views.clone_event,   name='clone_event'),
     path('config/',                   views.global_config, name='global_config'),
 
-    # Composite
+               
     path('events/<int:pk>/subeventos/agregar/',
          views.agregar_subevento, name='agregar_subevento'),
     path('events/<int:evento_id>/subeventos/<int:subevento_id>/eliminar/',
@@ -19,36 +19,36 @@ urlpatterns = [
     path('events/<int:evento_id>/subeventos/<int:subevento_id>/editar/',
          views.editar_subevento, name='editar_subevento'),
 
-    # Bridge
+            
     path('events/<int:pk>/reporte/<str:tipo>/<str:formato>/',
          views.generar_reporte, name='generar_reporte'),
     path('evento/<int:pk>/descargar/',
          views.descargar_reporte, name='descargar_reporte'),
-    # Shortcut: single PDF download for complete report
+                                                       
     path('events/<int:pk>/reporte/pdf/',
          views.generar_reporte, {'tipo': 'completo', 'formato': 'pdf'},
          name='generar_pdf'),
-    # Bridge: JSON API representation
+                                     
     path('evento/<int:pk>/api/json/',
          views.evento_api_json, name='evento_api_json'),
 
-    # Adapter
+             
     path('events/<int:evento_id>/proveedores/',
          views.listar_proveedores, name='listar_proveedores'),
     path('events/<int:evento_id>/proveedores/<int:proveedor_id>/contratar/',
          views.contratar_servicio, name='contratar_servicio'),
 
-    # Chain of Responsibility
+                             
     path('events/<int:pk>/validar/',
          views.validar_evento, name='validar_evento'),
 
-    # Adapter – Catering / Streaming
+                                    
     path('evento/<int:evento_id>/contratar-catering/<int:catering_id>/',
          views.contratar_catering, name='contratar_catering'),
     path('evento/<int:evento_id>/contratar-streaming/<int:streaming_id>/',
          views.contratar_streaming, name='contratar_streaming'),
 
-    # Payment Gateway (Adapter Pattern)
+                                       
     path('pagar/<int:evento_id>/',
          views.procesar_pago, name='procesar_pago'),
     path('historial-transacciones/',
@@ -56,15 +56,15 @@ urlpatterns = [
     path('transaccion/<int:transaccion_id>/',
          views.detalle_transaccion, name='detalle_transaccion'),
 
-    # Decorator Pattern
+                       
     path('evento/<int:evento_id>/decorador/<str:decorador_key>/toggle/',
          views.toggle_decorador, name='toggle_decorador'),
 
-    # Template Method Pattern
+                             
     path('events/<int:pk>/confirmar/',
          views.confirmar_evento, name='confirmar_evento'),
 
-    # Observer Pattern – notification history
+                                             
     path('events/<int:pk>/notificaciones/',
          views.historial_notificaciones, name='historial_notificaciones'),
 ]

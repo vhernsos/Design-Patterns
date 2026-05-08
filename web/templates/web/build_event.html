@@ -11,7 +11,7 @@
   </div>
 </div>
 
-<!-- Step indicator -->
+
 <div class="step-indicator" id="step-indicator">
   <div class="step active" id="ind-0">
     <div class="step-circle">0</div>
@@ -42,7 +42,7 @@
 <div class="card card-elevated">
   <form method="post" id="build-form">
     {% csrf_token %}
-    <!-- Hidden fields -->
+    
     <input type="hidden" name="build_mode"      id="build_mode"      value="from_scratch">
     <input type="hidden" name="source_event_id" id="source_event_id" value="">
     <div style="display:none;">
@@ -50,9 +50,7 @@
       {{ form.configuracion }}
     </div>
 
-    <!-- ════════════════════════════════════════════════════════════
-         STEP 0 — Mode Selection
-    ════════════════════════════════════════════════════════════ -->
+    
     <div id="step-mode">
       <div class="form-section-title">🚀 ¿Cómo te gustaría crear este evento?</div>
       <div class="option-cards" style="margin-bottom:1.5rem;">
@@ -78,12 +76,10 @@
       </div>
     </div>
 
-    <!-- ════════════════════════════════════════════════════════════
-         SCRATCH FLOW
-    ════════════════════════════════════════════════════════════ -->
+    
     <div id="scratch-flow" style="display:none;">
 
-      <!-- Event type -->
+      
       <div class="form-section-title">🎪 Seleccionar Tipo de Evento</div>
       <div class="option-cards" style="margin-bottom:1.5rem;">
 
@@ -117,11 +113,11 @@
 
       </div>
 
-      <!-- Config level -->
+      
       <div class="form-section-title">⚙ Nivel de Configuración</div>
       <div class="option-cards">
 
-        <!-- Standard -->
+        
         <div class="option-card config-card"
              onclick="selectOption(this,'id_configuracion','estandar')">
           <span class="option-card-icon">⭐</span>
@@ -151,7 +147,7 @@
           </div>
         </div>
 
-        <!-- Complete -->
+        
         <div class="option-card config-card"
              onclick="selectOption(this,'id_configuracion','completa')">
           <span class="option-card-icon">🌟</span>
@@ -191,7 +187,7 @@
           </div>
         </div>
 
-        <!-- Custom -->
+        
         <div class="option-card config-card"
              onclick="selectOption(this,'id_configuracion','personalizada')">
           <span class="option-card-icon">🎛️</span>
@@ -209,7 +205,7 @@
 
       <div class="divider"></div>
 
-      <!-- Event details -->
+      
       <div class="form-section-title">📋 Detalles del Evento</div>
       <div class="two-col">
         <div class="form-group">
@@ -255,7 +251,7 @@
                   placeholder="Breve descripción del evento...">{{ form.descripcion.value|default:'' }}</textarea>
       </div>
 
-      <!-- Custom services panel -->
+      
       <div id="custom-services" style="display:none;">
         <div class="form-section-title">🛠 Servicios Personalizados</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;">
@@ -274,7 +270,7 @@
         </div>
       </div>
 
-      <!-- External services (Adapter Pattern) -->
+      
       {% if proveedores_catering or proveedores_streaming %}
       <div class="divider"></div>
       <div class="form-section-title">🔌 Servicios Externos (Adapter)</div>
@@ -307,7 +303,7 @@
       </div>
       {% endif %}
 
-      <!-- ── COMPOSITE: Inline Sub-events ─────────────────────────── -->
+      
       <div class="divider"></div>
       <div id="subeventos-section">
         <div style="display:flex;align-items:center;justify-content:space-between;
@@ -323,7 +319,7 @@
         </div>
         <input type="hidden" name="subevento_count" id="subevento_count" value="0">
         <div id="subeventos-container">
-          <!-- Rows are injected by JavaScript -->
+          
         </div>
         <div id="subeventos-empty" style="color:var(--gray-500);font-size:.85rem;
              padding:.75rem 0;display:block;">
@@ -339,11 +335,9 @@
         <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancelar</a>
       </div>
 
-    </div><!-- /scratch-flow -->
+    </div>
 
-    <!-- ════════════════════════════════════════════════════════════
-         CLONE FLOW — Step A: Event selection grid
-    ════════════════════════════════════════════════════════════ -->
+    
     <div id="clone-flow" style="display:none;">
       <div id="clone-select-panel">
         <div class="form-section-title">🧬 Seleccionar Evento Fuente</div>
@@ -380,13 +374,13 @@
         </div>
       </div>
 
-      <!-- Clone Step B: Feature configuration -->
+      
       <div id="clone-config-panel" style="display:none;">
         <div class="form-section-title">🔧 Personaliza Tu Clon</div>
 
         <div class="clone-config-layout">
 
-          <!-- Left: source event read-only panel -->
+          
           <div class="clone-source-panel">
             <div class="clone-source-header">
               <span class="clone-source-icon">🧬</span>
@@ -403,7 +397,7 @@
             <div id="src-services" class="clone-source-services"></div>
           </div>
 
-          <!-- Right: new event details + service toggles -->
+          
           <div class="clone-edit-panel">
             <div class="form-section-title" style="margin-top:0;">📋 Detalles del Nuevo Evento</div>
             <div class="form-group">
@@ -461,14 +455,14 @@
             </div>
           </div>
 
-        </div><!-- /clone-config-layout -->
-      </div><!-- /clone-config-panel -->
-    </div><!-- /clone-flow -->
+        </div>
+      </div>
+    </div>
 
   </form>
 </div>
 
-<!-- Hidden real form inputs for clone submission -->
+
 <form id="clone-submit-form" method="post" style="display:none;">
   {% csrf_token %}
   <input type="hidden" name="build_mode"      value="from_clone">
@@ -485,7 +479,7 @@
   <input type="hidden" name="tiene_seguridad"  id="fs-seguridad">
   <input type="hidden" name="tiene_streaming"  id="fs-streaming">
   <input type="hidden" name="tiene_decoracion" id="fs-decoracion">
-  <!-- Dummy fields required by form validation -->
+  
   <input type="hidden" name="tipo_builder"    value="">
   <input type="hidden" name="configuracion"   value="">
 </form>

@@ -3,7 +3,6 @@ from decimal import Decimal
 
 
 class ComponenteEvento(ABC):
-    """Interfaz base para evento y sus decoradores"""
 
     @abstractmethod
     def obtener_descripcion(self) -> str:
@@ -19,7 +18,6 @@ class ComponenteEvento(ABC):
 
 
 class EventoBase(ComponenteEvento):
-    """Evento sin decoradores"""
 
     def __init__(self, evento_django):
         self.evento = evento_django
@@ -35,7 +33,6 @@ class EventoBase(ComponenteEvento):
 
 
 class DecoradorEvento(ComponenteEvento):
-    """Clase base para todos los decoradores"""
 
     def __init__(self, componente: ComponenteEvento):
         self._componente = componente
@@ -52,10 +49,9 @@ class DecoradorEvento(ComponenteEvento):
         return self._componente.obtener_nombre()
 
 
-# Decoradores concretos
+                       
 
 class MusicaEnVivoDecorador(DecoradorEvento):
-    """Añade música en vivo al evento – €2000"""
     PRECIO = Decimal('2000')
     NOMBRE = "Música en vivo"
 
@@ -67,7 +63,6 @@ class MusicaEnVivoDecorador(DecoradorEvento):
 
 
 class CateringPremiumDecorador(DecoradorEvento):
-    """Añade catering premium – €3000"""
     PRECIO = Decimal('3000')
     NOMBRE = "Catering Premium"
 
@@ -79,7 +74,6 @@ class CateringPremiumDecorador(DecoradorEvento):
 
 
 class SeguridadVIPDecorador(DecoradorEvento):
-    """Añade seguridad VIP – €2000"""
     PRECIO = Decimal('2000')
     NOMBRE = "Seguridad VIP"
 
@@ -91,7 +85,6 @@ class SeguridadVIPDecorador(DecoradorEvento):
 
 
 class StreamingAvanzadoDecorador(DecoradorEvento):
-    """Añade streaming avanzado – €1500"""
     PRECIO = Decimal('1500')
     NOMBRE = "Streaming Avanzado"
 
@@ -103,7 +96,6 @@ class StreamingAvanzadoDecorador(DecoradorEvento):
 
 
 class DJProfesionalDecorador(DecoradorEvento):
-    """Añade DJ profesional – €1500"""
     PRECIO = Decimal('1500')
     NOMBRE = "DJ Profesional"
 
@@ -115,7 +107,6 @@ class DJProfesionalDecorador(DecoradorEvento):
 
 
 class IluminacionEspecialDecorador(DecoradorEvento):
-    """Añade iluminación especial – €1200"""
     PRECIO = Decimal('1200')
     NOMBRE = "Iluminación Especial"
 
@@ -127,7 +118,6 @@ class IluminacionEspecialDecorador(DecoradorEvento):
 
 
 class OpenBarDecorador(DecoradorEvento):
-    """Añade open bar – €2500"""
     PRECIO = Decimal('2500')
     NOMBRE = "Open Bar"
 
@@ -139,7 +129,6 @@ class OpenBarDecorador(DecoradorEvento):
 
 
 class ValetParkingDecorador(DecoradorEvento):
-    """Añade valet parking – €800"""
     PRECIO = Decimal('800')
     NOMBRE = "Valet Parking"
 
@@ -151,7 +140,6 @@ class ValetParkingDecorador(DecoradorEvento):
 
 
 class FotografoDecorador(DecoradorEvento):
-    """Añade fotógrafo profesional – €1000"""
     PRECIO = Decimal('1000')
     NOMBRE = "Fotógrafo Profesional"
 
@@ -163,7 +151,6 @@ class FotografoDecorador(DecoradorEvento):
 
 
 class VideografoDecorador(DecoradorEvento):
-    """Añade videógrafo profesional – €1200"""
     PRECIO = Decimal('1200')
     NOMBRE = "Videógrafo Profesional"
 
@@ -174,7 +161,7 @@ class VideografoDecorador(DecoradorEvento):
         return self._componente.obtener_precio() + self.PRECIO
 
 
-# Registro de decoradores disponibles
+                                     
 DECORADORES_DISPONIBLES = {
     'musica_vivo':         MusicaEnVivoDecorador,
     'catering_premium':    CateringPremiumDecorador,
@@ -188,7 +175,7 @@ DECORADORES_DISPONIBLES = {
     'videografo':          VideografoDecorador,
 }
 
-# Human-readable labels
+                       
 DECORADORES_LABELS = {
     'musica_vivo':         ('Música en vivo',         '2.000'),
     'catering_premium':    ('Catering Premium',        '3.000'),
@@ -204,7 +191,6 @@ DECORADORES_LABELS = {
 
 
 def aplicar_decoradores(evento_django, lista_decoradores: list) -> ComponenteEvento:
-    """Aplica decoradores en orden a un evento Django"""
     componente = EventoBase(evento_django)
 
     for decorador_key in lista_decoradores:

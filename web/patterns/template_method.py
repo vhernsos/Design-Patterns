@@ -4,7 +4,6 @@ from typing import List, Dict
 
 
 class PasoEjecucion:
-    """Representa un paso ejecutado dentro del Template Method"""
 
     def __init__(self, nombre: str):
         self.nombre = nombre
@@ -22,17 +21,12 @@ class PasoEjecucion:
 
 
 class ProcesoEventoTemplate(ABC):
-    """
-    Clase base abstracta para procesos de eventos.
-    Define el esqueleto del algoritmo (Template Method).
-    """
 
     def __init__(self, evento_django):
         self.evento = evento_django
         self.pasos_ejecutados: List[PasoEjecucion] = []
 
     def ejecutar_proceso(self) -> bool:
-        """Método Template — define el flujo general invariable"""
         try:
             if not self._ejecutar_paso('Validar datos', self.validar_datos):
                 return False
@@ -50,7 +44,6 @@ class ProcesoEventoTemplate(ABC):
             return False
 
     def _ejecutar_paso(self, nombre: str, funcion) -> bool:
-        """Ejecuta un paso y registra su resultado"""
         paso = PasoEjecucion(nombre)
         try:
             resultado = funcion()
@@ -69,10 +62,9 @@ class ProcesoEventoTemplate(ABC):
         paso.marcar_error(error)
         self.pasos_ejecutados.append(paso)
 
-    # ── Pasos comunes a todos los tipos de evento ─────────────────────────────
+                                                                                
 
     def validar_datos(self) -> dict:
-        """Valida datos básicos del evento"""
         if not self.evento.nombre:
             raise ValueError("El evento debe tener nombre")
         if not self.evento.fecha_inicio:
@@ -80,7 +72,6 @@ class ProcesoEventoTemplate(ABC):
         return {'datos_validados': True}
 
     def configurar_servicios(self) -> dict:
-        """Configura los servicios generales del evento"""
         servicios = []
         if self.evento.catering_contratado:
             servicios.append(self.evento.catering_contratado.nombre)
@@ -89,7 +80,6 @@ class ProcesoEventoTemplate(ABC):
         return {'servicios_configurados': servicios}
 
     def calcular_costes(self) -> dict:
-        """Calcula los costes totales del evento."""
         from .calculator import CalculadoraCostes
 
         costos = CalculadoraCostes.calcular_costo_total(self.evento)
@@ -104,17 +94,14 @@ class ProcesoEventoTemplate(ABC):
 
     @abstractmethod
     def configurar_especifico(self) -> dict:
-        """Paso personalizado que cada subclase debe implementar"""
         pass
 
     def confirmar_evento(self) -> dict:
-        """Confirma el evento y persiste el cambio"""
         self.evento.confirmado = True
         self.evento.save(update_fields=['confirmado'])
         return {'evento_confirmado': True}
 
     def obtener_historial(self) -> List[Dict]:
-        """Retorna el historial de pasos ejecutados"""
         return [
             {
                 'nombre': paso.nombre,
@@ -126,10 +113,9 @@ class ProcesoEventoTemplate(ABC):
         ]
 
 
-# ── Implementaciones específicas por tipo de evento ───────────────────────────
+                                                                                
 
 class ProcesoConferencia(ProcesoEventoTemplate):
-    """Flujo específico para conferencias"""
 
     def configurar_especifico(self) -> dict:
         ponentes = self.evento.ponentes or []
@@ -139,7 +125,6 @@ class ProcesoConferencia(ProcesoEventoTemplate):
 
 
 class ProcesoBoda(ProcesoEventoTemplate):
-    """Flujo específico para bodas"""
 
     def configurar_especifico(self) -> dict:
         if not self.evento.ceremonia_tipo:
@@ -148,7 +133,6 @@ class ProcesoBoda(ProcesoEventoTemplate):
 
 
 class ProcesoConcierto(ProcesoEventoTemplate):
-    """Flujo específico para conciertos"""
 
     def configurar_especifico(self) -> dict:
         artistas = self.evento.artistas or []
@@ -158,7 +142,6 @@ class ProcesoConcierto(ProcesoEventoTemplate):
 
 
 class ProcesoCumpleanos(ProcesoEventoTemplate):
-    """Flujo específico para cumpleaños"""
 
     def configurar_especifico(self) -> dict:
         if not self.evento.edad_cumple or self.evento.edad_cumple < 1:
@@ -167,7 +150,6 @@ class ProcesoCumpleanos(ProcesoEventoTemplate):
 
 
 class ProcesoExposicion(ProcesoEventoTemplate):
-    """Flujo específico para exposiciones"""
 
     def configurar_especifico(self) -> dict:
         if not self.evento.cantidad_obras or self.evento.cantidad_obras < 1:
@@ -176,13 +158,12 @@ class ProcesoExposicion(ProcesoEventoTemplate):
 
 
 class ProcesoGenerico(ProcesoEventoTemplate):
-    """Flujo genérico para tipos de evento no especializados"""
 
     def configurar_especifico(self) -> dict:
         return {'tipo': 'genérico', 'configuracion_ok': True}
 
 
-# ── Factory ───────────────────────────────────────────────────────────────────
+                                                                                
 
 _PROCESOS = {
     'conferencia': ProcesoConferencia,
@@ -194,9 +175,5 @@ _PROCESOS = {
 
 
 def crear_proceso_evento(evento_django, tipo_evento: str) -> ProcesoEventoTemplate:
-    """
-    Factory: crea el proceso correcto según el tipo de evento.
-    Usa ProcesoGenerico como fallback para tipos no especializados.
-    """
     ProcesoClass = _PROCESOS.get(tipo_evento.lower(), ProcesoGenerico)
     return ProcesoClass(evento_django)

@@ -8,7 +8,7 @@ class Command(BaseCommand):
     help = 'Crea los proveedores de catering y streaming iniciales'
 
     def handle(self, *args, **options):
-        # Catering providers
+                            
         catering_data = [
             {
                 'nombre': 'Catering Premium',
@@ -29,7 +29,7 @@ class Command(BaseCommand):
             status = 'creado' if created else 'ya existe'
             self.stdout.write(f'ProveedorCatering "{obj.nombre}" — {status}')
 
-        # Streaming providers
+                             
         streaming_data = [
             {
                 'nombre': 'Streaming 4K Premium',

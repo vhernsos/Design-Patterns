@@ -39,14 +39,10 @@ def is_staff(user):
     return user.is_staff
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+                                                                                
 
 def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=None,
                                 exclude_evento_id=None) -> DatosValidacion:
-    """
-    Build DatosValidacion from form cleaned data for the Chain of Responsibility.
-    Pass exclude_evento_id when editing an existing event to prevent self-comparison.
-    """
     singleton = ConfiguracionGlobal()
     servicios_req = []
     cfg = evento_form_data
@@ -57,16 +53,16 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
 
     capacidad_ub = ubicacion_obj.capacidad if ubicacion_obj else 0
 
-    # Collect existing root events at same location to check schedule conflicts.
-    # Sub-events (evento_padre IS NOT NULL) are excluded because they are nested
-    # within their parent and intentionally share the same location/dates.
+                                                                                
+                                                                                
+                                                                          
     existentes = []
     if ubicacion_obj:
         qs = Evento.objects.filter(ubicacion=ubicacion_obj, evento_padre__isnull=True)
         for ev in qs:
             existentes.append({'id': ev.pk, 'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
 
-    # Catering and streaming costs from selected providers
+                                                          
     costo_catering = 0.0
     catering_obj = cfg.get('catering_contratado')
     if catering_obj:
@@ -99,30 +95,32 @@ def _construir_datos_validacion(evento_form_data, ubicacion_obj=None, config=Non
     )
 
 
-# ── Dashboard ────────────────────────────────────────────────────────────────
+                                                                               
 @login_required
 def dashboard(request):
-    # Only show root events — sub-events are visible inside their parent's detail page
+                                                                                      
     eventos = Evento.objects.select_related('tipo', 'ubicacion', 'organizador').filter(
         evento_padre__isnull=True
     )
     tipo_id = request.GET.get('tipo')
     fecha   = request.GET.get('fecha')
     if tipo_id:
-        eventos = eventos.filter(tipo_id=tipo_id)
+        eventos = eventos.filter(tipo__nombre__iexact=tipo_id)
     if fecha:
         eventos = eventos.filter(fecha_inicio__date=fecha)
 
     config = ConfiguracionGlobal()
     tipos  = TipoEvento.objects.all()
+    tipos_eventos = ['boda', 'concierto', 'teatro', 'conferencia']
     return render(request, 'web/dashboard.html', {
         'eventos': eventos,
         'tipos':   tipos,
         'config':  config,
+        'cantidad_tipos': len(tipos_eventos),
     })
 
 
-# ── Detail ───────────────────────────────────────────────────────────────────
+                                                                               
 @login_required
 def event_detail(request, pk):
     evento = get_object_or_404(
@@ -140,14 +138,14 @@ def event_detail(request, pk):
     costos = CalculadoraCostes.calcular_costo_total(evento)
     monto_total = costos['costos_totales']
 
-    # ── Decorator Pattern ─────────────────────────────────────────────────────
+                                                                                
     decoradores_activos = evento.decoradores or []
     evento_decorado = aplicar_decoradores(evento, decoradores_activos)
     precio_decorado = evento_decorado.obtener_precio()
     descripcion_decorada = evento_decorado.obtener_descripcion()
     costo_decoradores = costos['costo_decorator_total']
 
-    # Build list of available/active decorator info for the template
+                                                                    
     decoradores_info = [
         {
             'key': key,
@@ -166,7 +164,7 @@ def event_detail(request, pk):
         'pasarelas': pasarelas,
         'monto_total': monto_total,
         'costos': costos,
-        # Decorator
+                   
         'decoradores_info': decoradores_info,
         'precio_decorado': precio_decorado,
         'descripcion_decorada': descripcion_decorada,
@@ -175,7 +173,7 @@ def event_detail(request, pk):
     })
 
 
-# ── Update ───────────────────────────────────────────────────────────────────
+                                                                               
 @login_required
 def event_update(request, pk):
     evento = get_object_or_404(
@@ -313,7 +311,7 @@ def event_update(request, pk):
     })
 
 
-# ── Delete ───────────────────────────────────────────────────────────────────
+                                                                               
 @login_required
 def event_delete(request, pk):
     evento = get_object_or_404(Evento, pk=pk)
@@ -325,7 +323,7 @@ def event_delete(request, pk):
     return render(request, 'web/event_confirm_delete.html', {'evento': evento})
 
 
-# ── Builder ──────────────────────────────────────────────────────────────────
+                                                                               
 @login_required
 def build_event(request):
     all_events = Evento.objects.select_related(
@@ -336,7 +334,7 @@ def build_event(request):
         es_clon=False,
     ).order_by('-creado_en')
 
-    # Serialize event data for JavaScript (clone source selection)
+                                                                  
     events_json = []
     for ev in all_events:
         cfg = {}
@@ -366,7 +364,7 @@ def build_event(request):
             data       = form.cleaned_data
             build_mode = data['build_mode']
 
-            # ── Clone Mode ───────────────────────────────────────────────────
+                                                                               
             if build_mode == 'from_clone':
                 original = get_object_or_404(
                     Evento,
@@ -403,7 +401,7 @@ def build_event(request):
                 )
                 return redirect('event_detail', pk=nuevo_evento.pk)
 
-            # ── Scratch Mode ─────────────────────────────────────────────────
+                                                                               
             tipo_builder  = data['tipo_builder']
             configuracion = data['configuracion']
 
@@ -434,7 +432,7 @@ def build_event(request):
                 builder.configuracion_completa()
                 evento_data = builder.build()
 
-            else:  # custom
+            else:          
                 builder.set_nombre(data['nombre'])
                 builder.set_ubicacion(data.get('ubicacion', ''))
                 builder.set_fechas(inicio_str, fin_str)
@@ -448,7 +446,7 @@ def build_event(request):
                 if data.get('tiene_decoracion'):  builder.agregar_decoracion()
                 evento_data = builder.build()
 
-            # ── Persist to DB ────────────────────────────────────────────────
+                                                                               
             tipo_obj, _ = TipoEvento.objects.get_or_create(nombre=evento_data.tipo)
             ubicacion_obj = None
             if evento_data.ubicacion:
@@ -457,7 +455,7 @@ def build_event(request):
                     defaults={'direccion': '', 'ciudad': ''},
                 )
 
-            # ── Chain of Responsibility: validate before saving ───────────────
+                                                                                
             datos_validacion = _construir_datos_validacion(
                 {
                     'nombre': evento_data.nombre,
@@ -522,10 +520,10 @@ def build_event(request):
                 tiene_decoracion  = evento_data.tiene_decoracion,
             )
 
-            # ── Inline Sub-events (Composite) ─────────────────────────────
+                                                                            
             import re as _re
             from django.utils.dateparse import parse_datetime as _parse_dt
-            # Find all submitted sub-event indices via form field names
+                                                                       
             sub_indices = sorted({
                 int(m.group(1))
                 for key in request.POST
@@ -550,7 +548,7 @@ def build_event(request):
                 if sub_tipo_nombre:
                     sub_tipo_obj, _ = TipoEvento.objects.get_or_create(nombre=sub_tipo_nombre)
 
-                # Inherit parent location if not specified
+                                                          
                 sub_ubicacion_obj = ubicacion_obj
                 if sub_ubicacion_str and sub_ubicacion_str != (str(ubicacion_obj) if ubicacion_obj else ''):
                     sub_ubicacion_obj, _ = Ubicacion.objects.get_or_create(
@@ -573,7 +571,7 @@ def build_event(request):
                     evento_padre   = evento,
                     es_compuesto   = False,
                 )
-                # Sub-event services
+                                    
                 ConfiguracionEvento.objects.create(
                     evento            = subevento,
                     tiene_catering    = bool(request.POST.get(f'{prefix}-tiene_catering')),
@@ -611,7 +609,7 @@ def build_event(request):
     })
 
 
-# ── Prototype / Clone ─────────────────────────────────────────────────────────
+                                                                                
 @login_required
 def clone_event(request, pk):
     original = get_object_or_404(Evento, pk=pk, organizador=request.user)
@@ -662,7 +660,7 @@ def clone_event(request, pk):
     })
 
 
-# ── Global Config (Singleton) ─────────────────────────────────────────────────
+                                                                                
 @login_required
 @user_passes_test(is_staff)
 def global_config(request):
@@ -684,17 +682,16 @@ def global_config(request):
         'singleton': singleton,
     })
 
-# ── COMPOSITE: Sub-event management ──────────────────────────────────────────
+                                                                               
 
 @login_required
 def agregar_subevento(request, pk):
-    """GET: show form to add a sub-event. POST: create and attach sub-event."""
     evento_padre = get_object_or_404(Evento, pk=pk)
 
     if request.method == 'POST':
         form = SubEventoForm(request.POST)
         if form.is_valid():
-            # Validate no circular reference
+                                            
             subevento = form.save(commit=False)
             subevento.organizador = request.user
             subevento.evento_padre = evento_padre
@@ -702,7 +699,7 @@ def agregar_subevento(request, pk):
             subevento.save()
             form.save_m2m()
 
-            # Mark parent as composite
+                                      
             if not evento_padre.es_compuesto:
                 evento_padre.es_compuesto = True
                 evento_padre.save(update_fields=['es_compuesto'])
@@ -726,14 +723,13 @@ def agregar_subevento(request, pk):
 
 @login_required
 def eliminar_subevento(request, evento_id, subevento_id):
-    """POST: remove a sub-event from its parent."""
     evento_padre = get_object_or_404(Evento, pk=evento_id)
     subevento = get_object_or_404(Evento, pk=subevento_id, evento_padre=evento_padre)
 
     if request.method == 'POST':
         nombre = subevento.nombre
         subevento.delete()
-        # Update parent composite flag if no more sub-events
+                                                            
         if not evento_padre.subeventos.exists():
             evento_padre.es_compuesto = False
             evento_padre.save(update_fields=['es_compuesto'])
@@ -743,7 +739,6 @@ def eliminar_subevento(request, evento_id, subevento_id):
 
 @login_required
 def editar_subevento(request, evento_id, subevento_id):
-    """GET/POST: edit an individual sub-event."""
     evento_padre = get_object_or_404(Evento, pk=evento_id)
     subevento    = get_object_or_404(Evento, pk=subevento_id, evento_padre=evento_padre)
     config_obj, _ = ConfiguracionEvento.objects.get_or_create(evento=subevento)
@@ -768,7 +763,7 @@ def editar_subevento(request, evento_id, subevento_id):
     })
 
 
-# ── BRIDGE: Report generation ─────────────────────────────────────────────────
+                                                                                
 
 @login_required
 def generar_reporte(request, pk, tipo, formato):
@@ -807,11 +802,10 @@ def descargar_reporte(request, pk):
     return generar_reporte(request, pk, tipo_reporte, formato)
 
 
-# ── ADAPTER: External service providers ──────────────────────────────────────
+                                                                               
 
 @login_required
 def listar_proveedores(request, evento_id):
-    """Show available service providers and contracted services for an event."""
     evento = get_object_or_404(Evento, pk=evento_id)
     proveedores = ProveedorServicio.objects.filter(activo=True)
     contratos = ServicioContratado.objects.filter(evento=evento).select_related('proveedor')
@@ -825,12 +819,11 @@ def listar_proveedores(request, evento_id):
 
 @login_required
 def contratar_servicio(request, evento_id, proveedor_id):
-    """POST: contract a service from a provider using the Adapter pattern."""
     evento = get_object_or_404(Evento, pk=evento_id)
     proveedor = get_object_or_404(ProveedorServicio, pk=proveedor_id, activo=True)
 
     if request.method == 'POST':
-        # Build adapter using simulated/demo credentials - no real API calls
+                                                                            
         key = proveedor.api_key or 'simulated_key'
         adapter_factories = {
             'catering_a':  lambda: AdaptadorCateringProveedorA(),
@@ -879,11 +872,10 @@ def contratar_servicio(request, evento_id, proveedor_id):
     return redirect('listar_proveedores', evento_id=evento_id)
 
 
-# ── CHAIN OF RESPONSIBILITY: Event validation view ────────────────────────────
+                                                                                
 
 @login_required
 def validar_evento(request, pk):
-    """Show a detailed validation report for an event using Chain of Responsibility."""
     evento = get_object_or_404(
         Evento.objects.select_related('ubicacion').prefetch_related('configuracion'),
         pk=pk,
@@ -904,7 +896,7 @@ def validar_evento(request, pk):
             Evento.objects
             .filter(ubicacion=evento.ubicacion)
             .exclude(pk=pk)
-            .exclude(evento_padre=evento)   # exclude own sub-events
+            .exclude(evento_padre=evento)                           
         )
         for ev in qs:
             existentes.append({'id': ev.pk, 'nombre': ev.nombre, 'inicio': ev.fecha_inicio, 'fin': ev.fecha_fin})
@@ -930,7 +922,7 @@ def validar_evento(request, pk):
         decoradores=list(evento.decoradores or []),
     )
 
-    # Run each validator individually for detailed UI feedback
+                                                              
     from .patterns.chain_of_responsibility import (
         ValidadorCapacidad, ValidadorServicios,
         ValidadorServiciosExternos, ValidadorPresupuesto,
@@ -947,7 +939,7 @@ def validar_evento(request, pk):
         ValidadorRestriccionesGlobales(),
     ]
 
-    # Sub-events are exempt from the validation chain
+                                                     
     if evento.evento_padre is not None:
         resultado_global = ResultadoValidacion(aprobado=True, mensaje="Sub-evento exento de validación global.")
         resultados_detalle = [
@@ -978,11 +970,10 @@ def validar_evento(request, pk):
     })
 
 
-# ── CATERING / STREAMING: Adapter Pattern ─────────────────────────────────────
+                                                                                
 
 @login_required
 def contratar_catering(request, evento_id, catering_id):
-    """Contract a catering provider for an event (Adapter Pattern)."""
     from decimal import Decimal
     evento = get_object_or_404(Evento.objects.select_related('streaming_contratado', 'catering_contratado'), pk=evento_id, organizador=request.user)
     catering = get_object_or_404(ProveedorCatering, pk=catering_id)
@@ -1021,7 +1012,6 @@ def contratar_catering(request, evento_id, catering_id):
 
 @login_required
 def contratar_streaming(request, evento_id, streaming_id):
-    """Contract a streaming provider for an event (Adapter Pattern)."""
     from decimal import Decimal
     evento = get_object_or_404(Evento.objects.select_related('streaming_contratado', 'catering_contratado'), pk=evento_id, organizador=request.user)
     streaming = get_object_or_404(ProveedorStreaming, pk=streaming_id)
@@ -1058,14 +1048,13 @@ def contratar_streaming(request, evento_id, streaming_id):
     return redirect('event_detail', pk=evento_id)
 
 
-# ── PAYMENT GATEWAY: Adapter Pattern ─────────────────────────────────────────
+                                                                               
 
 @login_required
 def procesar_pago(request, evento_id):
-    """Display payment form and process payment using the Adapter pattern."""
     evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
 
-    # Only one payment per event
+                                
     if evento.pagado:
         messages.warning(request, '⚠️ Este evento ya ha sido pagado.')
         return redirect('event_detail', pk=evento_id)
@@ -1085,7 +1074,7 @@ def procesar_pago(request, evento_id):
 
         pasarela = get_object_or_404(Pasarela, pk=pasarela_id, activa=True)
 
-        # Use Adapter Pattern to process the payment
+                                                    
         adapter = get_adapter_for_pasarela(pasarela.tipo)
         datos_evento = {
             'evento_id': str(evento.pk),
@@ -1112,7 +1101,7 @@ def procesar_pago(request, evento_id):
             evento.monto_pagado = monto_total
             evento.save(update_fields=['pagado', 'fecha_pago', 'monto_pagado'])
 
-            # Observer: notify about payment
+                                            
             observable = construir_observable_con_observadores(evento)
             observable.registrar_pago(float(monto_total), pasarela.nombre)
             HistorialNotificacion.objects.create(
@@ -1145,12 +1134,11 @@ def procesar_pago(request, evento_id):
 
 @login_required
 def historial_transacciones(request):
-    """Show the payment transaction history for the authenticated user."""
     transacciones = Transaccion.objects.filter(
         usuario=request.user
     ).select_related('evento', 'pasarela').order_by('-fecha')
 
-    # Filters
+             
     estado_filtro = request.GET.get('estado', '')
     evento_filtro = request.GET.get('evento', '')
 
@@ -1168,14 +1156,13 @@ def historial_transacciones(request):
 
 @login_required
 def detalle_transaccion(request, transaccion_id):
-    """Show details of a single transaction."""
     transaccion = get_object_or_404(Transaccion, pk=transaccion_id, usuario=request.user)
     return render(request, 'web/detalle_transaccion.html', {
         'transaccion': transaccion,
     })
 
 
-# ── BRIDGE: JSON API for events ───────────────────────────────────────────────
+                                                                                
 
 @login_required
 def evento_api_json(request, pk):
@@ -1194,11 +1181,10 @@ def evento_api_json(request, pk):
     return HttpResponse(reporte.generar(evento), content_type='application/json')
 
 
-# ── DECORATOR: Toggle decorator extras on an event ────────────────────────────
+                                                                                
 
 @login_required
 def toggle_decorador(request, evento_id, decorador_key):
-    """POST: toggle a decorator extra on/off for an event."""
     evento = get_object_or_404(Evento, pk=evento_id, organizador=request.user)
 
     if decorador_key not in DECORADORES_DISPONIBLES:
@@ -1241,11 +1227,10 @@ def toggle_decorador(request, evento_id, decorador_key):
     return redirect('event_detail', pk=evento_id)
 
 
-# ── TEMPLATE METHOD: Confirm event flow ──────────────────────────────────────
+                                                                               
 
 @login_required
 def confirmar_evento(request, pk):
-    """POST: run the Template Method process to confirm an event."""
     evento = get_object_or_404(Evento, pk=pk, organizador=request.user)
 
     if evento.confirmado:
@@ -1257,7 +1242,7 @@ def confirmar_evento(request, pk):
         exito = proceso.ejecutar_proceso()
         historial = proceso.obtener_historial()
 
-        # Observer: notify about status change
+                                              
         observable = construir_observable_con_observadores(evento)
         if exito:
             observable.cambiar_estado('confirmado')
@@ -1273,7 +1258,7 @@ def confirmar_evento(request, pk):
                 f'✅ Evento confirmado correctamente usando el flujo de {evento.get_tipo_evento_display()}.'
             )
         else:
-            # Find the failed step message
+                                          
             error_msg = next(
                 (p['resultado'].get('error', '') for p in historial if p['estado'] == 'error'),
                 'Error desconocido'
@@ -1293,11 +1278,10 @@ def confirmar_evento(request, pk):
     })
 
 
-# ── OBSERVER: Notification history for an event ───────────────────────────────
+                                                                                
 
 @login_required
 def historial_notificaciones(request, pk):
-    """Show observer notification history for an event."""
     evento = get_object_or_404(Evento, pk=pk, organizador=request.user)
     notificaciones = evento.notificaciones.all()
     return render(request, 'web/historial_notificaciones.html', {

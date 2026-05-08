@@ -4,7 +4,7 @@
 
 <div style="max-width:680px;margin:0 auto;">
 
-  <!-- Breadcrumb -->
+  
   <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--gray-400);">
     <a href="{% url 'dashboard' %}" style="color:var(--gray-400);">Panel</a>
     <span>›</span>
@@ -13,7 +13,7 @@
     <span style="color:var(--gray-200);">Validación</span>
   </div>
 
-  <!-- Header -->
+  
   <div class="card card-elevated" style="margin-bottom:1.5rem;padding:1.5rem;">
     <div style="display:flex;align-items:center;gap:.75rem;">
       <span style="font-size:1.8rem;">🔗</span>
@@ -27,7 +27,7 @@
     </div>
   </div>
 
-  <!-- Global result banner -->
+  
   {% if resultado_global.aprobado %}
   <div style="background:rgba(6,214,160,0.1);border:1px solid rgba(6,214,160,0.3);
               border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.5rem;
@@ -56,7 +56,7 @@
   </div>
   {% endif %}
 
-  <!-- Individual validators -->
+  
   <div class="card">
     <h3 style="margin-bottom:1rem;font-size:1rem;color:var(--purple-light);">
       Detalle de validadores

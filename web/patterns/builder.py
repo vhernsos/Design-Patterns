@@ -4,7 +4,6 @@ from typing import List
 
 @dataclass
 class EventoData:
-    """Plain data object produced by the Builder."""
     nombre: str = ""
     tipo: str = ""
     ubicacion: str = ""
@@ -37,7 +36,6 @@ class EventoData:
 
 
 class EventoBuilder:
-    """Abstract base builder."""
 
     def __init__(self):
         self._evento = EventoData()
@@ -103,7 +101,6 @@ class EventoBuilder:
 
 
 class EventoConferenciaBuilder(EventoBuilder):
-    """Concrete builder for conferences."""
 
     def __init__(self):
         super().__init__()
@@ -128,7 +125,6 @@ class EventoConferenciaBuilder(EventoBuilder):
 
 
 class EventoBodaBuilder(EventoBuilder):
-    """Concrete builder for weddings."""
 
     def __init__(self):
         super().__init__()
@@ -153,7 +149,6 @@ class EventoBodaBuilder(EventoBuilder):
 
 
 class EventoConcertBuilder(EventoBuilder):
-    """Concrete builder for concerts."""
 
     def __init__(self):
         super().__init__()
@@ -178,7 +173,6 @@ class EventoConcertBuilder(EventoBuilder):
 
 
 class EventoTheatreBuilder(EventoBuilder):
-    """Concrete builder for theatre events."""
 
     def __init__(self):
         super().__init__()
@@ -203,7 +197,6 @@ class EventoTheatreBuilder(EventoBuilder):
 
 
 class DirectorEvento:
-    """Orchestrates building using any EventoBuilder."""
 
     def __init__(self, builder: EventoBuilder):
         self._builder = builder

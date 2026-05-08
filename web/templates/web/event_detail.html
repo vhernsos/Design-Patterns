@@ -2,7 +2,7 @@
 {% block title %}{{ evento.nombre }}{% endblock %}
 {% block content %}
 
-<!-- Detail hero -->
+
 <div class="detail-hero">
   <div>
     <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem;">
@@ -58,7 +58,7 @@
 </div>
 
 <div class="two-col">
-  <!-- Services -->
+  
   <div class="card card-elevated">
     <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--purple-light);">
       ⚙ Configuración de Servicios
@@ -97,7 +97,7 @@
     {% endif %}
   </div>
 
-  <!-- Contracted services -->
+  
   {% if evento.servicios.all %}
   <div class="card card-elevated">
     <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--purple-light);">
@@ -123,7 +123,7 @@
   </div>
   {% endif %}
 
-  <!-- External services (Adapter Pattern) -->
+  
   {% if evento.catering_contratado or evento.streaming_contratado %}
   <div class="card card-elevated">
     <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--purple-light);">
@@ -200,7 +200,7 @@
     </table>
   </div>
 
-  <!-- Clone history -->
+  
   {% if evento.clones.all %}
   <div class="card card-elevated">
     <h3 style="margin-bottom:1.2rem;font-size:1rem;color:var(--purple-light);">
@@ -220,7 +220,7 @@
   </div>
   {% endif %}
 
-  <!-- Original event -->
+  
   {% if evento.evento_original %}
   <div class="card" style="background:rgba(245,158,11,0.07);
        border-color:rgba(245,158,11,0.25);">
@@ -238,7 +238,7 @@
   {% endif %}
 </div>
 
-<!-- ── COMPOSITE: Sub-events section ─────────────────────────────────────── -->
+
 <div class="card card-elevated" style="margin-top:1.5rem;">
   <div style="display:flex;align-items:center;justify-content:space-between;
               margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
@@ -334,7 +334,7 @@
   </form>
 </div>
 
-<!-- ── ADAPTER: External Services + Payment ──────────────────────────────── -->
+
 <div class="card card-elevated" style="margin-top:1.5rem;">
   <div style="display:flex;align-items:center;justify-content:space-between;
               margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
@@ -343,7 +343,7 @@
     </h3>
   </div>
 
-  <!-- ── CATERING ──────────────────────────────────────────────────────────── -->
+  
   <div style="margin-bottom:1.5rem;">
     <h5 style="font-size:.95rem;font-weight:700;color:var(--purple-light);margin-bottom:.75rem;">
       🍽️ Contratar Catering
@@ -391,7 +391,7 @@
     {% endif %}
   </div>
 
-  <!-- ── STREAMING ─────────────────────────────────────────────────────────── -->
+  
   <div style="margin-bottom:1.5rem;padding-top:1rem;
               border-top:1px solid rgba(255,255,255,0.07);">
     <h5 style="font-size:.95rem;font-weight:700;color:var(--purple-light);margin-bottom:.75rem;">
@@ -442,7 +442,7 @@
     {% endif %}
   </div>
 
-  <!-- ── PAGO ───────────────────────────────────────────────────────────────── -->
+  
   <div style="padding-top:1rem;border-top:1px solid rgba(255,255,255,0.07);">
     <h5 style="font-size:.95rem;font-weight:700;color:var(--purple-light);margin-bottom:.75rem;">
       💳 Procesar Pago
@@ -516,7 +516,7 @@
   </div>
 </div>
 
-<!-- ── CHAIN OF RESPONSIBILITY: Validation section ───────────────────────── -->
+
 <div class="card card-elevated" style="margin-top:1.5rem;">
   <div style="display:flex;align-items:center;justify-content:space-between;
               flex-wrap:wrap;gap:.5rem;">
@@ -532,7 +532,7 @@
   </p>
 </div>
 
-<!-- ── DECORATOR: Extra services section ─────────────────────────────────── -->
+
 <div class="card card-elevated" style="margin-top:1.5rem;">
   <div style="display:flex;align-items:center;justify-content:space-between;
               margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
@@ -588,7 +588,7 @@
   </div>
 </div>
 
-<!-- ── TEMPLATE METHOD + OBSERVER: Confirm & notifications ────────────────── -->
+
 <div class="card card-elevated" style="margin-top:1.5rem;">
   <div style="display:flex;align-items:center;justify-content:space-between;
               margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
@@ -620,7 +620,7 @@
   </p>
 </div>
 
-<!-- Singleton ribbon -->
+
 <div class="singleton-ribbon">
   <span class="singleton-tag">⚙ Config Singleton</span>
   <div class="singleton-item">
