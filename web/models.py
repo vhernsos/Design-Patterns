@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -121,12 +123,17 @@ class Evento(models.Model):
         """True if this event has no sub-events (leaf node in Composite tree)."""
         return not self.subeventos.exists()
 
+    def obtener_presupuesto_efectivo(self) -> Decimal:
+        """Return the usable budget for this event."""
+        if self.evento_padre_id:
+            return Decimal('0')
+        return self.presupuesto or Decimal('0')
+
     def calcular_presupuesto_total(self) -> float:
-        """Recursively sum budgets of self and all descendants."""
-        total = float(self.presupuesto)
-        for sub in self.subeventos.all():
-            total += sub.calcular_presupuesto_total()
-        return total
+        """Return the root event budget; sub-events do not own a budget."""
+        if self.evento_padre_id:
+            raise ValueError("Los subeventos no tienen presupuesto independiente")
+        return self.obtener_presupuesto_efectivo()
 
     def calcular_duracion_total(self) -> float:
         """Recursively sum duration (hours) of self and all descendants."""
@@ -146,12 +153,10 @@ class Evento(models.Model):
         return cap
 
     def calcular_monto_total(self):
-        """Calculates total amount: base budget + sub-events budgets."""
-        from decimal import Decimal
-        total = self.presupuesto or Decimal('0')
-        for sub in self.subeventos.all():
-            total += sub.presupuesto or Decimal('0')
-        return total
+        """Calculates the full event amount including adapters and decorators."""
+        from web.patterns.calculator import CalculadoraCostes
+
+        return CalculadoraCostes.calcular_costo_total(self)['costo_total']
 
 
 class ConfiguracionEvento(models.Model):

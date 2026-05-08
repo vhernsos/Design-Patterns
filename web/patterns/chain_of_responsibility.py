@@ -58,6 +58,9 @@ class DatosValidacion:
     # External services costs (Adapter pattern)
     costo_catering: float = 0.0
     costo_streaming: float = 0.0
+    catering_contratado: Optional[object] = None
+    streaming_contratado: Optional[object] = None
+    decoradores: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -203,14 +206,30 @@ class ValidadorPresupuesto(Handler):
     """
 
     def manejar(self, datos: DatosValidacion) -> ResultadoValidacion:
-        if datos.presupuesto_disponible > 0 and datos.costo_estimado > datos.presupuesto_disponible:
-            exceso = datos.costo_estimado - datos.presupuesto_disponible
+        from decimal import Decimal
+
+        from web.models import Evento
+        from web.patterns.calculator import CalculadoraCostes
+
+        evento_temp = Evento(presupuesto=Decimal(str(datos.presupuesto_disponible or 0)))
+        evento_temp.catering_contratado = datos.catering_contratado
+        evento_temp.streaming_contratado = datos.streaming_contratado
+        evento_temp.decoradores = datos.decoradores or []
+
+        costos = CalculadoraCostes.calcular_costo_total(evento_temp)
+        costo_total = float(costos['costo_total'])
+        costo_extras = float(costos['costo_adapter_total'] + costos['costo_decorator_total'])
+
+        if datos.presupuesto_disponible > 0 and costo_extras > datos.presupuesto_disponible:
+            exceso = costo_extras - datos.presupuesto_disponible
             return ResultadoValidacion(
                 aprobado=False,
                 mensaje=(
-                    f"El costo estimado (${datos.costo_estimado:,.2f}) supera el "
-                    f"presupuesto disponible (${datos.presupuesto_disponible:,.2f}) "
-                    f"en ${exceso:,.2f}."
+                    f"El costo total (€{costo_total:,.2f}) supera el presupuesto disponible "
+                    f"(€{datos.presupuesto_disponible:,.2f}) en €{exceso:,.2f}. "
+                    f"Desglose: Base €{float(costos['presupuesto_base']):,.2f} + "
+                    f"Adapter €{float(costos['costo_adapter_total']):,.2f} + "
+                    f"Decorator €{float(costos['costo_decorator_total']):,.2f}."
                 ),
                 validador=self.nombre,
             )

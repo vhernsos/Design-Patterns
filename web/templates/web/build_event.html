@@ -242,6 +242,11 @@
           <input type="number" name="max_asistentes" class="form-control"
                  value="{{ form.max_asistentes.value|default:'100' }}" min="1">
         </div>
+        <div class="form-group">
+          <label class="form-label">💰 Presupuesto del Evento</label>
+          <input type="number" name="presupuesto" class="form-control"
+                 value="{{ form.presupuesto.value|default:'0' }}" min="0" step="0.01">
+        </div>
       </div>
 
       <div class="form-group">
@@ -419,6 +424,10 @@
                 <label class="form-label">Máximo de Asistentes</label>
                 <input type="number" id="clone-max-asistentes" class="form-control" min="1" value="100">
               </div>
+              <div class="form-group">
+                <label class="form-label">💰 Presupuesto del Evento</label>
+                <input type="number" id="clone-presupuesto" class="form-control" min="0" step="0.01" value="0">
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Descripción</label>
@@ -468,6 +477,7 @@
   <input type="hidden" name="fecha_inicio"    id="fs-fecha-inicio">
   <input type="hidden" name="fecha_fin"       id="fs-fecha-fin">
   <input type="hidden" name="max_asistentes"  id="fs-max-asistentes">
+  <input type="hidden" name="presupuesto"     id="fs-presupuesto">
   <input type="hidden" name="descripcion"     id="fs-descripcion">
   <input type="hidden" name="tiene_catering"   id="fs-catering">
   <input type="hidden" name="tiene_escenario"  id="fs-escenario">
@@ -645,8 +655,9 @@ function selectSourceEvent(id) {
     if (cb) cb.checked = !!ev.config[key];
   }
 
-  // Pre-fill name
+  // Pre-fill name and budget
   document.getElementById('clone-nombre').value = 'Copia de ' + ev.nombre;
+  document.getElementById('clone-presupuesto').value = ev.presupuesto || '0';
 
   // Show config panel
   document.getElementById('clone-select-panel').style.display  = 'none';
@@ -665,6 +676,7 @@ function submitClone() {
   const fechaInicio  = document.getElementById('clone-fecha-inicio').value;
   const fechaFin     = document.getElementById('clone-fecha-fin').value;
   const maxAsist     = document.getElementById('clone-max-asistentes').value;
+  const presupuesto  = document.getElementById('clone-presupuesto').value;
   const descripcion  = document.getElementById('clone-descripcion').value;
 
   if (!selectedSourceId) { alert('Por favor selecciona un evento fuente primero.'); return; }
@@ -678,6 +690,7 @@ function submitClone() {
   document.getElementById('fs-fecha-inicio').value     = fechaInicio;
   document.getElementById('fs-fecha-fin').value        = fechaFin;
   document.getElementById('fs-max-asistentes').value   = maxAsist;
+  document.getElementById('fs-presupuesto').value      = presupuesto;
   document.getElementById('fs-descripcion').value      = descripcion;
 
   // Service checkboxes → on = '1', off = ''
@@ -774,12 +787,10 @@ function agregarSubevento() {
           <input type="number" name="${p}-max_asistentes" class="form-control"
                  value="50" min="1" style="font-size:.85rem;padding:.45rem .75rem;">
         </div>
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:.8rem;font-weight:600;color:#333;display:block;margin-bottom:.2rem;">
-            Presupuesto (USD)</label>
-          <input type="number" name="${p}-presupuesto" class="form-control"
-                 value="0" min="0" step="0.01" style="font-size:.85rem;padding:.45rem .75rem;">
-        </div>
+      </div>
+      <div style="background:rgba(91,94,244,0.06);border-radius:8px;padding:.55rem .75rem;
+                  font-size:.8rem;color:#4a4a6a;margin-bottom:.6rem;">
+        ℹ️ Los sub-eventos no tienen presupuesto independiente. Usan el presupuesto del evento principal.
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-top:.25rem;">
         ${serviceCheckboxes}
