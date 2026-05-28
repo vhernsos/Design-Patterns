@@ -18,25 +18,27 @@ class ComponenteEvento(ABC):
 
     @abstractmethod
     def calcular_presupuesto(self) -> float:
+        pass
 
     @abstractmethod
     def calcular_duracion(self) -> float:
+        pass
 
     @abstractmethod
     def obtener_capacidad(self) -> int:
-
-                                    
+        pass
 
     @abstractmethod
     def mover_fechas(self, delta: timedelta) -> None:
-
-                         
+        pass
 
     @abstractmethod
     def obtener_resumen(self, nivel: int = 0) -> str:
+        pass
 
     @abstractmethod
     def es_compuesto(self) -> bool:
+        pass
 
     def __str__(self) -> str:
         return self.obtener_resumen()

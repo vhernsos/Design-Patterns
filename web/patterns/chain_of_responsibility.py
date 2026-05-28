@@ -60,6 +60,7 @@ class Handler(ABC):
 
     @abstractmethod
     def manejar(self, datos: DatosValidacion) -> ResultadoValidacion:
+        pass
 
     def _continuar(self, datos: DatosValidacion) -> ResultadoValidacion:
         if self._siguiente:

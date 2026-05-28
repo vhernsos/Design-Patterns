@@ -4,34 +4,37 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 
 
-                                                                             
-                                                     
-                                                                             
+
+
+
 
 class IServicioExterno(ABC):
 
     @abstractmethod
     def conectar(self) -> bool:
+        pass
 
     @abstractmethod
     def procesar_solicitud(self, datos: Dict[str, Any]) -> Dict[str, Any]:
+        pass
 
     @abstractmethod
     def obtener_estado(self) -> Dict[str, Any]:
+        pass
 
     @property
     def nombre_proveedor(self) -> str:
         return self.__class__.__name__
 
 
-                                                                             
-                                                
-                                                                          
-                                                                             
 
-                                                                             
-                                                  
-                                                                             
+
+
+
+
+
+
+
 
 class CateringProveedorA:
 
@@ -89,9 +92,9 @@ class AdaptadorCateringProveedorA(IServicioExterno):
         }
 
 
-                                                                             
-                                                     
-                                                                             
+
+
+
 
 class CateringProveedorB:
 
@@ -104,14 +107,14 @@ class CateringProveedorB:
         print("[CateringProveedorB] Autenticado correctamente")
         return self._sesion
 
-    def submitOrder(self, payload: dict) -> dict:               
+    def submitOrder(self, payload: dict) -> dict:
         return {
             "orderId": f"B-{payload.get('eventName', 'EVT')[:5].upper()}-099",
             "status":  "ACCEPTED",
             "estimatedDelivery": "2025-06-01T12:00:00",
         }
 
-    def getOrderStatus(self, order_id: str) -> dict:               
+    def getOrderStatus(self, order_id: str) -> dict:
         return {"orderId": order_id, "status": "PROCESSING", "session": self._sesion}
 
 
@@ -149,13 +152,13 @@ class AdaptadorCateringProveedorB(IServicioExterno):
         }
 
 
-                                                                             
-                   
-                                                                             
 
-                                                                             
-        
-                                                                             
+
+
+
+
+
+
 
 class StripeAPI:
 
@@ -181,7 +184,7 @@ class AdaptadorStripe(IServicioExterno):
         self._intent_id = ""
 
     def conectar(self) -> bool:
-                                                                         
+
         self._conectado = self._stripe.api_key.startswith("sk_")
         return self._conectado
 
@@ -205,9 +208,9 @@ class AdaptadorStripe(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "Stripe", "ultimo_pago": estado}
 
 
-                                                                             
-        
-                                                                             
+
+
+
 
 class PayPalAPI:
 
@@ -257,9 +260,9 @@ class AdaptadorPayPal(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "PayPal", "ultimo_pedido": self._order_id}
 
 
-                                                                             
-             
-                                                                             
+
+
+
 
 class MercadoPagoAPI:
 
@@ -309,13 +312,13 @@ class AdaptadorMercadoPago(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "MercadoPago", "ultimo_pago": estado}
 
 
-                                                                             
-           
-                                                                             
 
-                                                                             
-              
-                                                                             
+
+
+
+
+
+
 
 class YouTubeStreamAPI:
 
@@ -363,9 +366,9 @@ class AdaptadorYouTube(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "YouTube Live", "broadcast_id": self._broadcast_id}
 
 
-                                                                             
-       
-                                                                             
+
+
+
 
 class VimeoStreamAPI:
 
@@ -408,9 +411,9 @@ class AdaptadorVimeo(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "Vimeo", "evento": estado}
 
 
-                                                                             
-               
-                                                                             
+
+
+
 
 class FacebookLiveAPI:
 
@@ -460,9 +463,9 @@ class AdaptadorFacebookLive(IServicioExterno):
         return {"conectado": self._conectado, "proveedor": "Facebook Live", "video": estado}
 
 
-                                                                             
-                                                           
-                                                                             
+
+
+
 
 def procesar_con_proveedor(proveedor: IServicioExterno, datos: Dict[str, Any]) -> Dict[str, Any]:
     if not proveedor.conectar():
@@ -470,9 +473,9 @@ def procesar_con_proveedor(proveedor: IServicioExterno, datos: Dict[str, Any]) -
     return proveedor.procesar_solicitud(datos)
 
 
-                                                                             
-                                                           
-                                                                             
+
+
+
 
 if __name__ == "__main__":
     print("=" * 60)
@@ -506,7 +509,7 @@ if __name__ == "__main__":
         print(f"\n[{plataforma.nombre_proveedor}] → {resultado}")
 
 
-                                                                               
+
 import random
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -576,18 +579,21 @@ class MercadoPagoAdapter(AdapterPasarela):
 
 
 
-                                                                                 
+
 
 class AdapterCatering(ABC):
 
     @abstractmethod
     def obtener_menu(self, comensales: int) -> dict:
+        pass
 
     @abstractmethod
     def obtener_precio(self) -> float:
+        pass
 
     @abstractmethod
     def obtener_nombre(self) -> str:
+        pass
 
 
 class CateringPremiumAdapter(AdapterCatering):
@@ -628,13 +634,15 @@ class AdapterStreaming(ABC):
 
     @abstractmethod
     def iniciar_transmision(self, titulo: str) -> dict:
+        pass
 
     @abstractmethod
     def obtener_precio(self) -> float:
+        pass
 
     @abstractmethod
     def obtener_nombre(self) -> str:
-
+        pass
 
 class Streaming4KAdapter(AdapterStreaming):
 
@@ -672,7 +680,7 @@ class StreamingHDAdapter(AdapterStreaming):
         return "Streaming HD Básico"
 
 
-                                                             
+
 _ADAPTER_MAP: dict = {
     'stripe':      StripeAdapter,
     'paypal':      PayPalAdapter,
