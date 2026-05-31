@@ -1,0 +1,324 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tikz}
+\usepackage{enumitem}
+\usetikzlibrary{arrows.meta,positioning,shapes.multipart,fit,backgrounds}
+
+\geometry{margin=2.5cm}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\title{\textbf{Implementacion de Patrones de Diseno en el Proyecto Bodas}\\
+\large Tecnicas de Programacion}
+\author{Victor Hernandez Sosa}
+\date{28 de mayo de 2026}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduccion}
+
+El proyecto \textit{Bodas} es una aplicacion web desarrollada con Django para gestionar eventos, proveedores, pagos, subeventos, validaciones, reportes y notificaciones. La implementacion incorpora patrones de diseno para separar responsabilidades, mejorar la mantenibilidad y demostrar el uso de programacion orientada a objetos en un caso practico.
+
+Los patrones no se han implementado solamente como ejemplos aislados. Algunos aparecen directamente en funcionalidades visibles para el usuario, como clonar eventos, contratar proveedores, generar reportes o validar eventos. Otros se usan como soporte interno para organizar la logica del sistema.
+
+\section{Diagrama general}
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tikzpicture}[
+    node distance=1.1cm and 1.6cm,
+    box/.style={
+        rectangle,
+        rounded corners,
+        draw=black!65,
+        fill=blue!6,
+        align=center,
+        minimum width=3.2cm,
+        minimum height=0.9cm
+    },
+    pattern/.style={
+        rectangle,
+        rounded corners,
+        draw=black!60,
+        fill=green!8,
+        align=center,
+        minimum width=3.2cm,
+        minimum height=0.8cm
+    },
+    data/.style={
+        rectangle,
+        rounded corners,
+        draw=black!60,
+        fill=orange!10,
+        align=center,
+        minimum width=3.2cm,
+        minimum height=0.8cm
+    },
+    arrow/.style={-{Latex[length=3mm]}, thick, draw=black!70}
+]
+
+\node[box] (user) {Usuario};
+\node[box, below=of user] (templates) {Interfaz web\\Templates HTML};
+\node[box, below=of templates] (views) {Vistas Django\\\texttt{view\_handlers.py}};
+\node[data, below=of views] (models) {Modelos Django\\Evento, Proveedor, Pago};
+
+\node[pattern, right=of views] (creation) {Creacionales\\Singleton, Factory,\\Abstract Factory, Builder, Prototype};
+\node[pattern, below=of creation] (structural) {Estructurales\\Adapter, Decorator, Facade,\\Composite, Proxy, Bridge};
+\node[pattern, below=of structural] (behavior) {Comportamiento\\Strategy, Observer, Command,\\State, Iterator, Template,\\Mediator, Chain, Memento, Visitor};
+
+\node[data, left=of models] (db) {Base de datos\\SQLite / PostgreSQL};
+\node[data, right=of models] (external) {Servicios externos\\Pagos, catering, streaming};
+
+\draw[arrow] (user) -- (templates);
+\draw[arrow] (templates) -- (views);
+\draw[arrow] (views) -- (models);
+\draw[arrow] (models) -- (db);
+\draw[arrow] (views) -- (creation);
+\draw[arrow] (views) -- (structural);
+\draw[arrow] (views) -- (behavior);
+\draw[arrow] (structural) -- (external);
+\draw[arrow] (behavior) -- (models);
+\draw[arrow] (creation) -- (models);
+
+\end{tikzpicture}
+}
+\caption{Relacion general entre la interfaz, las vistas, los modelos y los patrones de diseno.}
+\end{figure}
+
+\section{Resumen de patrones implementados}
+
+\begin{longtable}{|p{3.3cm}|p{4cm}|p{7cm}|}
+\hline
+\textbf{Patron} & \textbf{Modulo principal} & \textbf{Uso en el proyecto} \\
+\hline
+Singleton & \texttt{singleton.py} & Gestion centralizada de la configuracion global del sistema. \\
+\hline
+Factory Method & \texttt{factory\_method.py} & Creacion de proveedores concretos de pago, ubicacion o catering. \\
+\hline
+Abstract Factory & \texttt{abstract\_factory.py} & Creacion de familias de elementos relacionados segun el tipo de evento. \\
+\hline
+Builder & \texttt{builder.py} & Construccion guiada de eventos con diferentes configuraciones. \\
+\hline
+Prototype & \texttt{prototype.py} & Clonado de eventos existentes y sus subeventos. \\
+\hline
+Adapter & \texttt{adapter.py} & Unificacion de pasarelas de pago, catering y streaming. \\
+\hline
+Decorator & \texttt{decorator.py} & Adicion dinamica de extras al evento, como DJ, fotografo u open bar. \\
+\hline
+Facade & \texttt{facade.py} & Coordinacion de alta de evento, pago, proveedores y notificaciones. \\
+\hline
+Composite & \texttt{composite.py} & Representacion de eventos compuestos formados por subeventos. \\
+\hline
+Proxy & \texttt{proxy.py} & Control de acceso a operaciones segun el rol del usuario. \\
+\hline
+Bridge & \texttt{bridge.py} & Separacion entre tipo de reporte y formato de salida. \\
+\hline
+Strategy & \texttt{strategy.py} & Intercambio de algoritmos de filtrado y calculo. \\
+\hline
+Observer & \texttt{observer.py} & Notificacion de cambios en eventos, pagos y servicios. \\
+\hline
+Command & \texttt{command.py} & Encapsulacion de acciones sobre eventos como objetos ejecutables. \\
+\hline
+State & \texttt{state.py} & Gestion de estados del ciclo de vida de un evento. \\
+\hline
+Iterator & \texttt{iterator.py} & Recorrido normal, inverso, filtrado o paginado de colecciones. \\
+\hline
+Template Method & \texttt{template\_method.py} & Flujo comun de confirmacion con pasos especificos por tipo de evento. \\
+\hline
+Mediator & \texttt{mediator.py} & Comunicacion coordinada entre organizador, proveedor y coordinador. \\
+\hline
+Chain of Responsibility & \texttt{chain\_of\_responsibility.py} & Cadena de validadores para aprobar o rechazar eventos. \\
+\hline
+Memento & \texttt{memento.py} & Guardado y restauracion de estados de un evento. \\
+\hline
+Visitor & \texttt{visitor.py} & Operaciones externas sobre elementos de evento, como calculo o validacion. \\
+\hline
+\end{longtable}
+
+\section{Explicacion detallada}
+
+\subsection{Singleton}
+
+El patron Singleton garantiza que exista una unica instancia de una clase. En el proyecto se aplica en \texttt{ConfiguracionGlobal}, que centraliza valores como moneda, impuestos, limite de asistentes, notificaciones activas y modo mantenimiento.
+
+Se usa cuando una vista necesita consultar restricciones globales, por ejemplo al validar un evento. Su utilidad es evitar que distintas partes del sistema tengan configuraciones contradictorias.
+
+\subsection{Factory Method}
+
+Factory Method delega la creacion de objetos concretos a una fabrica. En el proyecto aparece en \texttt{ServiceFactory}, que crea proveedores de pago, ubicacion o catering segun un identificador.
+
+Se usa cuando el sistema conoce el tipo de servicio solicitado, pero no quiere acoplar la vista o la logica principal a una clase concreta. Por ejemplo, pedir un proveedor \texttt{stripe} devuelve un objeto preparado para trabajar con Stripe.
+
+\subsection{Abstract Factory}
+
+Abstract Factory crea familias de objetos relacionados. En este proyecto permite generar componentes de un evento segun su categoria, como invitacion, decoracion y catering para bodas, conferencias o conciertos.
+
+Se usa cuando todos los objetos deben pertenecer a la misma familia conceptual. Por ejemplo, una boda debe tener invitacion, decoracion y catering coherentes con una boda, no mezclados con los de una conferencia.
+
+\subsection{Builder}
+
+Builder permite construir objetos complejos paso a paso. En \texttt{builder.py} se usa para crear eventos con configuracion estandar, completa o personalizada.
+
+Se usa en la creacion guiada de eventos. Es adecuado porque un evento tiene muchos campos y servicios opcionales: catering, escenario, iluminacion, seguridad, streaming y decoracion. El Builder evita constructores demasiado largos y mejora la legibilidad.
+
+\subsection{Prototype}
+
+Prototype crea nuevos objetos copiando uno existente. En el proyecto se usa para clonar eventos reales de la base de datos, incluyendo configuracion, servicios, decoradores y subeventos.
+
+Se usa cuando el usuario quiere crear un evento similar a otro ya existente. En lugar de rellenar todos los datos desde cero, se clona el evento y se modifican los datos necesarios.
+
+\subsection{Adapter}
+
+Adapter convierte interfaces incompatibles en una interfaz comun. En \texttt{adapter.py} se adapta la comunicacion con pasarelas de pago, proveedores de catering y plataformas de streaming.
+
+Se usa cuando el sistema debe tratar de forma uniforme servicios externos que funcionan de manera distinta. El usuario puede elegir Stripe, PayPal o MercadoPago, pero la aplicacion los procesa mediante una interfaz comun.
+
+\subsection{Decorator}
+
+Decorator permite anadir responsabilidades a un objeto sin modificar su clase original. En el proyecto se usa para agregar extras a eventos: musica en vivo, catering premium, seguridad VIP, streaming avanzado, DJ, iluminacion, open bar, valet parking, fotografo o videografo.
+
+Se usa cuando el usuario activa o desactiva extras en el detalle de un evento. Cada decorador modifica la descripcion y aumenta el precio final.
+
+\subsection{Facade}
+
+Facade ofrece una interfaz simple para coordinar subsistemas complejos. En \texttt{facade.py}, \texttt{EventFacade} agrupa creacion de evento, pago, asignacion de proveedores y envio de notificaciones.
+
+Se usa para representar operaciones completas de negocio sin exponer todos los pasos internos. Es util cuando una accion del sistema requiere coordinar varias clases.
+
+\subsection{Composite}
+
+Composite permite tratar objetos individuales y grupos de objetos de forma uniforme. En el proyecto representa eventos compuestos formados por subeventos.
+
+Se usa cuando un evento principal contiene partes internas, por ejemplo ceremonia, banquete y fiesta posterior. El evento compuesto puede calcular presupuesto, duracion y capacidad total a partir de sus hijos.
+
+\subsection{Proxy}
+
+Proxy controla el acceso a un objeto real. En el proyecto se usa para simular distintos niveles de permiso: invitado, usuario, organizador y administrador.
+
+Se usa cuando no todos los usuarios deben poder realizar las mismas acciones. Por ejemplo, un invitado puede ver informacion basica, pero un organizador puede editar o eliminar.
+
+\subsection{Bridge}
+
+Bridge separa una abstraccion de su implementacion. En el proyecto separa el tipo de reporte del formato de salida.
+
+Se usa al generar reportes. El sistema puede producir un reporte resumen, detallado, financiero o completo, y combinarlo con formatos como JSON, CSV, HTML, PDF o email sin duplicar clases para cada combinacion.
+
+\subsection{Strategy}
+
+Strategy permite intercambiar algoritmos en tiempo de ejecucion. En el proyecto se aplica a filtros de eventos y calculos de coste.
+
+Se usa cuando existen varias formas validas de resolver una misma tarea. Por ejemplo, filtrar por fecha, presupuesto, ubicacion o asistentes; o calcular costes con una estrategia estandar, premium o economica.
+
+\subsection{Observer}
+
+Observer permite que varios observadores reaccionen automaticamente cuando un objeto cambia. En el proyecto, cuando un evento cambia, se notifica a email, proveedores y analitica.
+
+Se usa al actualizar presupuestos, contratar servicios, agregar extras o registrar pagos. La vista no necesita llamar manualmente a cada notificador; solo dispara el evento y los observadores reaccionan.
+
+\subsection{Command}
+
+Command encapsula una accion como un objeto. En el proyecto hay comandos para crear, actualizar, eliminar o aprobar eventos.
+
+Se usa cuando se quiere guardar historial de acciones o permitir operaciones reversibles. Aunque en la interfaz no aparece como boton independiente, es una base adecuada para funcionalidades de auditoria o deshacer.
+
+\subsection{State}
+
+State permite que un objeto cambie su comportamiento segun su estado interno. En el proyecto modela estados como borrador, pendiente de aprobacion, aprobado, en progreso, completado o cancelado.
+
+Se usa para controlar las transiciones validas de un evento. Por ejemplo, un evento en borrador puede pasar a pendiente de aprobacion, pero no deberia completarse directamente.
+
+\subsection{Iterator}
+
+Iterator proporciona una forma uniforme de recorrer colecciones sin exponer su estructura interna. En el proyecto se aplica a colecciones de eventos.
+
+Se usa cuando se necesita recorrer eventos en orden normal, inverso, filtrado o paginado. Es especialmente util para separar la logica de recorrido de la logica de negocio.
+
+\subsection{Template Method}
+
+Template Method define un algoritmo general y permite que las subclases personalicen algunos pasos. En el proyecto se usa para confirmar eventos.
+
+El flujo comun incluye validar datos, configurar servicios, calcular costes, ejecutar configuracion especifica y confirmar el evento. La parte especifica cambia segun el tipo: una conferencia necesita ponentes, una boda necesita tipo de ceremonia, un concierto necesita artistas, etc.
+
+\subsection{Mediator}
+
+Mediator centraliza la comunicacion entre objetos. En el proyecto coordina mensajes entre organizador, proveedor y coordinador.
+
+Se usa para evitar que cada participante conozca directamente a todos los demas. En lugar de comunicar objetos punto a punto, todos hablan mediante el mediador.
+
+\subsection{Chain of Responsibility}
+
+Chain of Responsibility encadena varios validadores. Cada validador decide si aprueba la peticion o la rechaza, y si todo va bien pasa al siguiente.
+
+En el proyecto se usa para validar eventos. La cadena comprueba capacidad, servicios requeridos, servicios externos, presupuesto, horarios y restricciones globales. Es visible en la pagina de validacion del evento.
+
+\subsection{Memento}
+
+Memento guarda el estado de un objeto para restaurarlo despues. En el proyecto se usa para crear puntos de control del estado de un evento.
+
+Se usa cuando se quiere permitir restaurar una version anterior sin romper el encapsulamiento del objeto. Aunque no sea una funcion principal visible en la interfaz, es util para historiales, borradores o deshacer cambios.
+
+\subsection{Visitor}
+
+Visitor permite anadir operaciones sobre una jerarquia de objetos sin modificar sus clases. En el proyecto se usa para calcular costes, generar reportes o validar componentes como catering, streaming, decoracion y ubicacion.
+
+Se usa cuando hay varios tipos de elementos y se quiere aplicar una operacion externa sobre todos ellos. Por ejemplo, calcular el coste total de diferentes componentes de un evento.
+
+\section{Patrones visibles para el usuario}
+
+Algunos patrones tienen una representacion clara en la interfaz:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Builder}: creacion guiada de eventos.
+    \item \textbf{Prototype}: boton o flujo para clonar eventos.
+    \item \textbf{Adapter}: contratacion de proveedores, pagos y streaming.
+    \item \textbf{Decorator}: extras opcionales en el evento.
+    \item \textbf{Composite}: gestion de subeventos.
+    \item \textbf{Bridge}: descarga o generacion de reportes.
+    \item \textbf{Chain of Responsibility}: validacion del evento.
+    \item \textbf{Template Method}: confirmacion del evento segun su tipo.
+\end{itemize}
+
+\section{Patrones internos}
+
+Otros patrones se utilizan principalmente para organizar el codigo:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Singleton}: configuracion global unica.
+    \item \textbf{Factory Method}: creacion desacoplada de proveedores.
+    \item \textbf{Abstract Factory}: familias coherentes de componentes.
+    \item \textbf{Facade}: coordinacion de subsistemas.
+    \item \textbf{Proxy}: control de acceso.
+    \item \textbf{Strategy}: intercambio de algoritmos.
+    \item \textbf{Observer}: notificaciones automaticas.
+    \item \textbf{Command}: acciones encapsuladas.
+    \item \textbf{State}: ciclo de vida del evento.
+    \item \textbf{Iterator}: recorrido de colecciones.
+    \item \textbf{Memento}: restauracion de estados.
+    \item \textbf{Visitor}: operaciones externas sobre componentes.
+    \item \textbf{Mediator}: comunicacion entre participantes.
+\end{itemize}
+
+\section{Conclusion}
+
+La implementacion de patrones en el proyecto \textit{Bodas} permite demostrar el uso de programacion orientada a objetos en una aplicacion real. Los patrones creacionales ayudan a construir eventos y proveedores; los estructurales organizan la relacion con servicios externos, reportes y subeventos; y los de comportamiento gestionan validaciones, notificaciones, estados, flujos y comunicacion.
+
+En conjunto, los patrones mejoran la separacion de responsabilidades, reducen el acoplamiento y hacen que el sistema sea mas facil de extender. Por ejemplo, se puede agregar una nueva pasarela de pago mediante un nuevo adaptador, un nuevo formato de reporte mediante Bridge, o una nueva validacion agregando otro elemento a la cadena de responsabilidad.
+
+\end{document}

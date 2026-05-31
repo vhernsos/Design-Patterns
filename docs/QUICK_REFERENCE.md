@@ -144,7 +144,7 @@ web/patterns/
 ├── memento.py
 ├── visitor.py
 ├── calculator.py
-└── test_all_patterns.py
+└── pattern_demo.py
 ```
 
 ---

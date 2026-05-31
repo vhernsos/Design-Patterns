@@ -60,7 +60,7 @@ web/patterns/
 │
 ├── UTILITIES
 ├── calculator.py                   # Cost calculation
-└── test_all_patterns.py            # Comprehensive test suite
+└── pattern_demo.py            # Comprehensive test suite
 ```
 
 ---
@@ -467,7 +467,7 @@ total = visitor.total_cost
 ## TESTING
 
 ### Test Coverage
-Comprehensive test suite: `test_all_patterns.py`
+Comprehensive test suite: `pattern_demo.py`
 - Tests all 21 patterns
 - Validates basic functionality
 - Checks integration points
@@ -476,7 +476,7 @@ Comprehensive test suite: `test_all_patterns.py`
 ### Running Tests
 ```bash
 cd web/patterns
-python test_all_patterns.py
+python web/patterns/pattern_demo.py
 ```
 
 ### Test Results Format

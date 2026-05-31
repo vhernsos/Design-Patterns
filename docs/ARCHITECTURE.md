@@ -68,7 +68,7 @@ The Bodas platform is built on a modern, scalable architecture using Django and 
 ### 2. Application Layer
 
 **Views & Serializers**
-- `web/views.py` - Web view handlers
+- `web/view_handlers.py` - Web view handlers
 - `web/api/views.py` - API view handlers
 - `web/api/serializers/` - Data serialization
 

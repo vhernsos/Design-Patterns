@@ -6,8 +6,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import EventoUpdateForm, SubEventoForm
-from .models import (
+from ..forms import EventoUpdateForm, SubEventoForm
+from ..models import (
     ConfiguracionEvento,
     Evento,
     HistorialNotificacion,
@@ -16,9 +16,9 @@ from .models import (
     TipoEvento,
     Ubicacion,
 )
-from .patterns.calculator import CalculadoraCostes
-from .patterns.prototype import PrototypeEventos
-from .patterns.template_method import crear_proceso_evento
+from ..patterns.calculator import CalculadoraCostes
+from ..patterns.prototype import PrototypeEventos
+from ..patterns.template_method import crear_proceso_evento
 
 
 class EventManagementRefactorTests(TestCase):

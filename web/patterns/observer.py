@@ -24,8 +24,8 @@ class NotificadorProveedor(Observador):
         if tipo_cambio == 'servicio_adapter_agregado':
             print(f"[PROVEEDOR] {detalles.get('tipo', '').upper()} agregado al evento {evento.nombre}")
             print(f"            Proveedor: {detalles.get('nombre')}")
-            print(f"            Precio: €{detalles.get('precio', 0):,.2f}")
-            print("            Se enviará notificación al proveedor...")
+            print(f"            Precio: EUR {detalles.get('precio', 0):,.2f}")
+            print("            Se enviara notificacion al proveedor...")
             return
 
         if tipo_cambio == 'servicio_adapter_removido':
@@ -36,7 +36,7 @@ class NotificadorProveedor(Observador):
         if tipo_cambio == 'servicio_decorator_agregado':
             print(f"[PROVEEDOR] Extra agregado: {detalles.get('nombre')}")
             print(f"            Evento: {evento.nombre}")
-            print(f"            Precio: €{detalles.get('precio', 0):,.2f}")
+            print(f"            Precio: EUR {detalles.get('precio', 0):,.2f}")
             return
 
         if tipo_cambio == 'servicio_decorator_removido':
@@ -47,22 +47,22 @@ class NotificadorProveedor(Observador):
         print(f"[PROVEEDOR] Notificando proveedores sobre: {tipo_cambio}")
         print(f"            Evento: {evento.nombre}")
         if evento.catering_contratado:
-            print(f"            → Catering: {evento.catering_contratado.nombre}")
+            print(f"            -> Catering: {evento.catering_contratado.nombre}")
         if evento.streaming_contratado:
-            print(f"            → Streaming: {evento.streaming_contratado.nombre}")
+            print(f"            -> Streaming: {evento.streaming_contratado.nombre}")
 
 
 class NotificadorAnalytica(Observador):
 
     def actualizar(self, evento, tipo_cambio: str, detalles: dict):
         if 'servicio' in tipo_cambio or 'decorator' in tipo_cambio:
-            print(f"[ANALÍTICA] Evento: {evento.id} - {evento.nombre}")
+            print(f"[ANALITICA] Evento: {evento.id} - {evento.nombre}")
             print(f"            Cambio: {tipo_cambio}")
             print(f"            Detalles: {detalles}")
             print(f"            Timestamp: {datetime.now().isoformat()}")
             return
 
-        print(f"[ANALÍTICA] Registrando evento: {tipo_cambio}")
+        print(f"[ANALITICA] Registrando evento: {tipo_cambio}")
         print(f"            Evento ID: {evento.id}")
         print(f"            Timestamp: {datetime.now().isoformat()}")
 
@@ -92,7 +92,7 @@ class EventoObservable:
         self.evento.fecha_inicio = nueva_fecha
         self.evento.save()
         self.notificar(
-            'evento_fecha_cambió',
+            'evento_fecha_cambio',
             {
                 'fecha_anterior': str(fecha_anterior),
                 'fecha_nueva': str(nueva_fecha),
@@ -101,7 +101,7 @@ class EventoObservable:
 
     def cambiar_estado(self, nuevo_estado):
         self.notificar(
-            'evento_estado_cambió',
+            'evento_estado_cambio',
             {'nuevo_estado': nuevo_estado}
         )
 

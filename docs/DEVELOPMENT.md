@@ -35,7 +35,7 @@ Access at `http://localhost:8000`
 
 ### Web Application
 - `web/models.py` - Data models
-- `web/views.py` - Web view functions
+- `web/view_handlers.py` - Web view functions
 - `web/api/` - REST API views and serializers
 - `web/patterns/` - Design pattern implementations
 - `web/templates/` - HTML templates
@@ -68,7 +68,7 @@ Access at `http://localhost:8000`
 
 ### Adding a New Web View
 
-1. Create function in `web/views/`
+1. Create function in `web/view_handlers.py`
 2. Create template in `web/templates/web/`
 3. Register in `web/urls.py`
 
