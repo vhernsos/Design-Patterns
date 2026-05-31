@@ -1,5 +1,5 @@
 from django import forms
-from .models import Evento, ConfiguracionEvento, GlobalConfig, ProveedorServicio, ProveedorCatering, ProveedorStreaming
+from .models import Evento, ConfiguracionEvento, GlobalConfig, ProveedorServicio, ProveedorCatering, ProveedorStreaming, TipoEvento, Ubicacion
 
 
 class EventoForm(forms.ModelForm):
@@ -151,11 +151,71 @@ class EventoUpdateForm(forms.ModelForm):
         }
 
 class SubEventoForm(forms.ModelForm):
+    TIPO_SUBEVENTO_CHOICES = [
+        ('teatro', 'Teatro'),
+        ('concierto', 'Concierto'),
+        ('boda', 'Boda'),
+        ('conferencia', 'Conferencia'),
+    ]
+
+    tipo_subevento = forms.ChoiceField(
+        choices=TIPO_SUBEVENTO_CHOICES,
+        label='Tipo',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    ubicacion_texto = forms.CharField(
+        max_length=200,
+        label='Ubicacion',
+        help_text='Escribe el lugar exacto del sub-evento.',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ej. Sala principal, Jardin exterior, Auditorio Norte',
+        }),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            if self.instance.tipo:
+                self.initial['tipo_subevento'] = self.instance.tipo.nombre.lower()
+            if self.instance.ubicacion:
+                self.initial['ubicacion_texto'] = self.instance.ubicacion.nombre
+        self.order_fields([
+            'nombre', 'tipo_subevento', 'ubicacion_texto',
+            'fecha_inicio', 'fecha_fin', 'descripcion', 'max_asistentes',
+        ])
+
+    def clean_tipo_subevento(self):
+        tipo = self.cleaned_data['tipo_subevento']
+        return dict(self.TIPO_SUBEVENTO_CHOICES)[tipo]
+
+    def clean_ubicacion_texto(self):
+        ubicacion = self.cleaned_data['ubicacion_texto'].strip()
+        if not ubicacion:
+            raise forms.ValidationError('Indica donde se realizara el sub-evento.')
+        return ubicacion
+
+    def save(self, commit=True):
+        subevento = super().save(commit=False)
+        tipo_nombre = self.cleaned_data['tipo_subevento']
+        ubicacion_nombre = self.cleaned_data['ubicacion_texto']
+        subevento.tipo, _ = TipoEvento.objects.get_or_create(
+            nombre=tipo_nombre,
+            defaults={'descripcion': f'Tipo de evento {tipo_nombre}'},
+        )
+        subevento.ubicacion, _ = Ubicacion.objects.get_or_create(
+            nombre=ubicacion_nombre,
+            defaults={'direccion': '', 'ciudad': '', 'capacidad': subevento.max_asistentes or 0},
+        )
+        if commit:
+            subevento.save()
+            self.save_m2m()
+        return subevento
 
     class Meta:
         model = Evento
         fields = [
-            'nombre', 'tipo', 'ubicacion',
+            'nombre',
             'fecha_inicio', 'fecha_fin',
             'descripcion', 'max_asistentes',
         ]

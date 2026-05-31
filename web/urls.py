@@ -4,6 +4,7 @@ from . import view_handlers as views
 urlpatterns = [
     path('',                          views.dashboard,     name='dashboard'),
     path('events/<int:pk>/',          views.event_detail,  name='event_detail'),
+    path('events/<int:pk>/patterns/', views.event_patterns, name='event_patterns'),
     path('evento/<int:pk>/editar/',   views.event_update,  name='event_update'),
     path('events/<int:pk>/edit/',     views.event_update,  name='event_update_legacy'),
     path('events/<int:pk>/delete/',   views.event_delete,  name='event_delete'),

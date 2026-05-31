@@ -123,6 +123,32 @@ class EventManagementRefactorTests(TestCase):
         with self.assertRaisesMessage(ValueError, 'Los subeventos no tienen presupuesto independiente'):
             subevento.calcular_presupuesto_total()
 
+    def test_subevento_form_uses_canonical_types_and_free_text_location(self):
+        form = SubEventoForm()
+        self.assertEqual(
+            list(form.fields['tipo_subevento'].choices),
+            [('teatro', 'Teatro'), ('concierto', 'Concierto'), ('boda', 'Boda'), ('conferencia', 'Conferencia')],
+        )
+        self.assertEqual(form.fields['ubicacion_texto'].__class__.__name__, 'CharField')
+
+        now = timezone.now()
+        form = SubEventoForm(data={
+            'nombre': 'Ceremonia privada',
+            'tipo_subevento': 'boda',
+            'ubicacion_texto': 'Jardin exterior',
+            'fecha_inicio': now.strftime('%Y-%m-%dT%H:%M'),
+            'fecha_fin': (now + timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M'),
+            'descripcion': 'Parte de la boda',
+            'max_asistentes': '80',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        subevento = form.save(commit=False)
+        subevento.organizador = self.user
+        subevento.evento_padre = self._create_event()
+        subevento.save()
+        self.assertEqual(subevento.tipo.nombre, 'Boda')
+        self.assertEqual(subevento.ubicacion.nombre, 'Jardin exterior')
+
     def test_cost_calculator_and_template_method_include_decorators(self):
         evento = self._create_event(
             presupuesto=Decimal('1000.00'),
@@ -191,6 +217,41 @@ class EventManagementRefactorTests(TestCase):
         self.assertEqual(response['Content-Type'], 'application/json')
         self.assertIn('presupuesto_limite', response.content.decode())
 
+    def test_bridge_reports_generate_valid_pdf_and_styled_html(self):
+        self.client.login(username='alice', password='secret123')
+        evento = self._create_event(
+            nombre='Boda Reporte',
+            catering_contratado=self.catering,
+            streaming_contratado=self.streaming,
+            decoradores=['dj_profesional'],
+        )
+        self._create_event(
+            nombre='Ceremonia',
+            tipo=self.tipo,
+            ubicacion=self.ubicacion,
+            evento_padre=evento,
+            presupuesto=Decimal('0.00'),
+        )
+
+        pdf = self.client.get(
+            reverse('descargar_reporte', args=[evento.pk]),
+            {'tipo': 'detallado', 'formato': 'pdf'},
+        )
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf['Content-Type'], 'application/pdf')
+        self.assertTrue(pdf.content.startswith(b'%PDF-'))
+        self.assertGreater(len(pdf.content), 1000)
+
+        html = self.client.get(
+            reverse('descargar_reporte', args=[evento.pk]),
+            {'tipo': 'detallado', 'formato': 'html'},
+        )
+        content = html.content.decode()
+        self.assertEqual(html.status_code, 200)
+        self.assertIn('linear-gradient', content)
+        self.assertIn('Sub-eventos', content)
+        self.assertIn('Boda Reporte', content)
+
     def test_clone_view_blocks_subevents_and_root_detail_hides_clone_warning(self):
         self.client.login(username='alice', password='secret123')
         evento = self._create_event()
@@ -202,3 +263,77 @@ class EventManagementRefactorTests(TestCase):
         other_event = self._create_event(nombre='Ajeno', organizador=self.other_user)
         forbidden = self.client.get(reverse('clone_event', args=[other_event.pk]))
         self.assertEqual(forbidden.status_code, 404)
+
+    def test_event_patterns_page_wires_standalone_patterns_to_web_flow(self):
+        self.client.login(username='alice', password='secret123')
+        evento = self._create_event(
+            presupuesto=Decimal('1500.00'),
+            catering_contratado=self.catering,
+            streaming_contratado=self.streaming,
+            decoradores=['dj_profesional'],
+        )
+        self._create_event(nombre='Evento Secundario', presupuesto=Decimal('500.00'))
+
+        response = self.client.get(reverse('event_patterns', args=[evento.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Factory Method')
+        self.assertContains(response, 'Abstract Factory')
+        self.assertContains(response, 'Visitor')
+
+        facade = self.client.post(
+            reverse('event_patterns', args=[evento.pk]),
+            {'action': 'run_facade', 'payment_method': 'stripe'},
+            follow=True,
+        )
+        self.assertContains(facade, 'Facade ejecutado')
+        self.assertTrue(HistorialNotificacion.objects.filter(evento=evento, mensaje__icontains='Facade').exists())
+
+        command = self.client.post(
+            reverse('event_patterns', args=[evento.pk]),
+            {'action': 'command_approve'},
+            follow=True,
+        )
+        self.assertContains(command, 'Command ejecutado')
+        evento.refresh_from_db()
+        self.assertTrue(evento.confirmado)
+
+        state = self.client.post(
+            reverse('event_patterns', args=[evento.pk]),
+            {'action': 'state_transition', 'state_action': 'approve'},
+            follow=True,
+        )
+        self.assertContains(state, 'State aplicado')
+        self.assertContains(state, 'pending_approval')
+
+        mediator = self.client.post(
+            reverse('event_patterns', args=[evento.pk]),
+            {'action': 'mediator_send', 'recipient': 'Proveedor', 'message': 'Preparar montaje'},
+            follow=True,
+        )
+        self.assertContains(mediator, 'Mediator envio')
+        self.assertContains(mediator, 'Preparar montaje')
+
+        saved = self.client.post(
+            reverse('event_patterns', args=[evento.pk]),
+            {'action': 'memento_save'},
+            follow=True,
+        )
+        self.assertContains(saved, 'Memento guardo')
+
+        renamed = self.client.post(
+            reverse('event_patterns', args=[evento.pk]),
+            {'action': 'command_update_name', 'new_name': 'Nombre temporal'},
+            follow=True,
+        )
+        self.assertContains(renamed, 'nombre actualizado')
+        evento.refresh_from_db()
+        self.assertEqual(evento.nombre, 'Nombre temporal')
+
+        restored = self.client.post(
+            reverse('event_patterns', args=[evento.pk]),
+            {'action': 'memento_restore', 'checkpoint': '0'},
+            follow=True,
+        )
+        self.assertContains(restored, 'Memento restauro')
+        evento.refresh_from_db()
+        self.assertEqual(evento.nombre, 'Evento Principal')

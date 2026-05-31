@@ -1,0 +1,208 @@
+{% extends 'web/base.html' %}
+{% block title %}Patrones - {{ evento.nombre }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h2 class="section-title">Patrones conectados al flujo web</h2>
+    <p class="section-subtitle">{{ evento.nombre }}</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'event_detail' evento.pk %}" class="btn btn-secondary">Volver al evento</a>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Factory Method</h3>
+    <form method="get" style="display:grid;gap:.7rem;">
+      <label>Pago</label>
+      <select name="factory_payment" class="form-control">
+        {% for item in factory_options.payments %}
+        <option value="{{ item }}" {% if item == factory_options.selected_payment %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+      <label>Ubicacion</label>
+      <select name="factory_venue" class="form-control">
+        {% for item in factory_options.venues %}
+        <option value="{{ item }}" {% if item == factory_options.selected_venue %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+      <label>Catering</label>
+      <select name="factory_catering" class="form-control">
+        {% for item in factory_options.caterings %}
+        <option value="{{ item }}" {% if item == factory_options.selected_catering %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-primary" type="submit">Crear proveedores</button>
+    </form>
+    <pre style="white-space:pre-wrap;margin-top:1rem;">{{ factory_result }}</pre>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Abstract Factory</h3>
+    <p style="color:var(--gray-400);font-size:.9rem;">Familia seleccionada: <strong>{{ abstract_type }}</strong></p>
+    <ul>
+      <li>Invitacion: {{ abstract_components.invitation }}</li>
+      <li>Decoracion: {{ abstract_components.decoration }}</li>
+      <li>Catering: {{ abstract_components.catering }}</li>
+    </ul>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Facade</h3>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="run_facade">
+      <label>Metodo de pago simulado</label>
+      <select name="payment_method" class="form-control" style="margin:.4rem 0 .8rem;">
+        <option value="stripe">stripe</option>
+        <option value="paypal">paypal</option>
+      </select>
+      <button class="btn btn-primary" type="submit">Ejecutar alta coordinada</button>
+    </form>
+    {% if facade_result %}
+    <pre style="white-space:pre-wrap;margin-top:1rem;">{{ facade_result }}</pre>
+    {% endif %}
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Proxy</h3>
+    <p>Nivel de acceso: <strong>{{ proxy.access_level }}</strong></p>
+    <p>Presupuesto visible: <strong>{{ proxy.budget }}</strong></p>
+    <pre style="white-space:pre-wrap;">{{ proxy.log }}</pre>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Strategy</h3>
+    <form method="get" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:end;">
+      <div>
+        <label>Estrategia</label>
+        <select name="strategy" class="form-control">
+          <option value="budget" {% if strategy.name == 'budget' %}selected{% endif %}>Presupuesto maximo</option>
+          <option value="attendees" {% if strategy.name == 'attendees' %}selected{% endif %}>Asistentes maximos</option>
+          <option value="location" {% if strategy.name == 'location' %}selected{% endif %}>Ciudad</option>
+          <option value="date" {% if strategy.name == 'date' %}selected{% endif %}>Fecha</option>
+        </select>
+      </div>
+      <div>
+        <label>Criterio</label>
+        <input name="criteria" class="form-control" value="{{ strategy.criteria }}">
+      </div>
+      <button class="btn btn-secondary" type="submit">Filtrar</button>
+    </form>
+    <p style="margin-top:.8rem;">Coste estandar estrategico: <strong>{{ strategy.cost|floatformat:2 }}</strong></p>
+    <ul>
+      {% for item in strategy.results %}
+      <li>{{ item.name }} - {{ item.date }} - {{ item.budget }}</li>
+      {% empty %}
+      <li>Sin resultados</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Command</h3>
+    <form method="post" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="command_approve">
+      <button class="btn btn-success" type="submit">Aprobar por comando</button>
+    </form>
+    <form method="post" style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="command_update_name">
+      <input name="new_name" class="form-control" value="{{ evento.nombre }}" style="max-width:260px;">
+      <button class="btn btn-warning" type="submit">Actualizar nombre</button>
+    </form>
+    <pre style="white-space:pre-wrap;margin-top:1rem;">{{ bucket.commands }}</pre>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">State</h3>
+    <p>Estado actual: <strong>{{ state_machine.status }}</strong></p>
+    <form method="post" style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="state_transition">
+      {% for action in state_machine.allowed_actions %}
+      <button class="btn btn-primary btn-sm" name="state_action" value="{{ action }}" type="submit">{{ action }}</button>
+      {% empty %}
+      <span class="badge badge-green">Sin transiciones pendientes</span>
+      {% endfor %}
+    </form>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Iterator</h3>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem;">
+      <a class="btn btn-secondary btn-sm" href="?iterator=normal">Normal</a>
+      <a class="btn btn-secondary btn-sm" href="?iterator=reverse">Inverso</a>
+      <a class="btn btn-secondary btn-sm" href="?iterator=filtered">Filtrado</a>
+    </div>
+    <ol>
+      {% for item in iterator.events %}
+      <li><a href="{% url 'event_detail' item.pk %}">{{ item.nombre }}</a></li>
+      {% empty %}
+      <li>Sin eventos</li>
+      {% endfor %}
+    </ol>
+    <p style="color:var(--gray-400);font-size:.85rem;">Paginas generadas: {{ iterator.pages|length }}</p>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Mediator</h3>
+    <form method="post" style="display:grid;gap:.7rem;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="mediator_send">
+      <select name="recipient" class="form-control">
+        <option value="Proveedor">Proveedor</option>
+        <option value="Coordinador">Coordinador</option>
+      </select>
+      <input name="message" class="form-control" placeholder="Mensaje para coordinar el evento">
+      <button class="btn btn-primary" type="submit">Enviar via mediador</button>
+    </form>
+    <pre style="white-space:pre-wrap;margin-top:1rem;">{{ bucket.mediator }}</pre>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Memento</h3>
+    <form method="post" style="margin-bottom:.8rem;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="memento_save">
+      <button class="btn btn-primary" type="submit">Guardar checkpoint</button>
+    </form>
+    <form method="post" style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="memento_restore">
+      <select name="checkpoint" class="form-control" style="max-width:220px;">
+        {% for checkpoint in bucket.mementos %}
+        <option value="{{ forloop.counter0 }}">{{ forloop.counter }} - {{ checkpoint.name }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-warning" type="submit">Restaurar</button>
+    </form>
+    <pre style="white-space:pre-wrap;margin-top:1rem;">{{ bucket.mementos }}</pre>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Composite</h3>
+    <pre style="white-space:pre-wrap;">{{ composite_summary }}</pre>
+  </div>
+
+  <div class="card card-elevated">
+    <h3 style="margin-bottom:1rem;">Visitor</h3>
+    <p>Componentes visitados: <strong>{{ visitor.component_count }}</strong></p>
+    <p>Coste calculado: <strong>{{ visitor.total_cost }}</strong></p>
+    <ul>
+      {% for line in visitor.report %}
+      <li>{{ line }}</li>
+      {% empty %}
+      <li>Sin componentes visitables para este evento.</li>
+      {% endfor %}
+    </ul>
+    {% if visitor.errors %}
+    <pre style="white-space:pre-wrap;">{{ visitor.errors }}</pre>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -52,6 +52,7 @@
     </small>
     {% endif %}
     <a href="{% url 'event_delete' evento.pk %}" class="btn btn-danger btn-sm">🗑 Eliminar</a>
+    <a href="{% url 'event_patterns' evento.pk %}" class="btn btn-info btn-sm">Patrones</a>
     <a href="{% url 'evento_api_json' evento.pk %}" class="btn btn-secondary btn-sm" target="_blank">🔗 API JSON</a>
     <a href="{% url 'dashboard' %}"              class="btn btn-secondary btn-sm">← Volver</a>
   </div>

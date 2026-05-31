@@ -33,10 +33,249 @@ from .patterns.decorator import (
 from .patterns.calculator import CalculadoraCostes
 from .patterns.observer import construir_observable_con_observadores
 from .patterns.template_method import crear_proceso_evento
+from .patterns.abstract_factory import EventFactoryProducer
+from .patterns.command import ApproveEventCommand, CommandInvoker, UpdateEventCommand
+from .patterns.composite import EventoCompuesto, EventoSimple
+from .patterns.facade import EventFacade
+from .patterns.factory_method import ServiceFactory
+from .patterns.iterator import EventCollection, PaginatedEventIterator
+from .patterns.mediator import EventCoordinator, EventMediator, EventOrganizer, Vendor
+from .patterns.memento import EventOriginator
+from .patterns.proxy import EventProxyFactory
+from .patterns.state import EventContext
+from .patterns.strategy import (
+    CostCalculator, EventFilter, FilterByAttendees, FilterByBudget,
+    FilterByDate, FilterByLocation, StandardCostCalculation,
+)
+from .patterns.visitor import (
+    BudgetReportVisitor, CateringEvent, CostCalculatorVisitor,
+    DecorationEvent, StreamingEvent, ValidationVisitor, VenueEvent,
+)
 
 
 def is_staff(user):
     return user.is_staff
+
+
+def _event_session_bucket(request, evento):
+    key = f'event_patterns:{evento.pk}'
+    bucket = request.session.get(key)
+    if not bucket:
+        bucket = {
+            'state': 'draft',
+            'commands': [],
+            'mediator': [],
+            'mementos': [],
+        }
+        request.session[key] = bucket
+    return key, bucket
+
+
+def _save_event_session_bucket(request, key, bucket):
+    request.session[key] = bucket
+    request.session.modified = True
+
+
+def _event_to_strategy_dict(evento):
+    return {
+        'id': evento.pk,
+        'name': evento.nombre,
+        'date': evento.fecha_inicio.date().isoformat() if evento.fecha_inicio else '',
+        'budget': float(evento.presupuesto or 0),
+        'location': evento.ubicacion.ciudad if evento.ubicacion else '',
+        'attendees': evento.max_asistentes,
+        'url': 'event_detail',
+    }
+
+
+def _restore_state_context(saved_state):
+    context = EventContext("web-event")
+    transitions = {
+        'pending_approval': ['approve'],
+        'approved': ['approve', 'approve'],
+        'in_progress': ['approve', 'approve', 'start'],
+        'completed': ['approve', 'approve', 'start', 'complete'],
+        'cancelled': ['cancel'],
+    }
+    for action in transitions.get(saved_state, []):
+        getattr(context, action)()
+    return context
+
+
+def _composite_from_event(evento):
+    root = EventoCompuesto(
+        evento.nombre,
+        descripcion=evento.descripcion,
+        fecha_inicio=evento.fecha_inicio,
+    )
+    for sub in evento.subeventos.all():
+        hours = (sub.fecha_fin - sub.fecha_inicio).total_seconds() / 3600
+        root.agregar(EventoSimple(
+            sub.nombre,
+            presupuesto=float(sub.obtener_presupuesto_efectivo()),
+            duracion_horas=round(hours, 2),
+            capacidad=sub.max_asistentes,
+            fecha_inicio=sub.fecha_inicio,
+            descripcion=sub.descripcion,
+            tipo=str(sub.tipo) if sub.tipo else '',
+        ))
+    return root
+
+
+def _visitor_components_for_event(evento):
+    components = []
+    if evento.catering_contratado:
+        components.append(CateringEvent(evento.max_asistentes))
+    if evento.streaming_contratado:
+        components.append(StreamingEvent(evento.streaming_contratado.nombre, True))
+    if evento.decoradores:
+        complexity = min(5, max(1, len(evento.decoradores)))
+        components.append(DecorationEvent(str(evento.tipo or evento.tipo_evento), complexity))
+    if evento.ubicacion:
+        components.append(VenueEvent(evento.ubicacion.nombre, evento.ubicacion.capacidad))
+    return components
+
+
+def _pattern_context(request, evento, bucket):
+    event_type_map = {
+        'boda': 'wedding',
+        'conferencia': 'conference',
+        'concierto': 'concert',
+    }
+    abstract_type = event_type_map.get((evento.tipo_evento or '').lower(), 'wedding')
+    try:
+        abstract_components = EventFactoryProducer.create_event_components(abstract_type)
+    except ValueError:
+        abstract_components = {}
+
+    factory_payment = request.GET.get('factory_payment', 'stripe')
+    factory_venue = request.GET.get('factory_venue', 'ballroom')
+    factory_catering = request.GET.get('factory_catering', 'traditional')
+    factory_result = {}
+    singleton = ConfiguracionGlobal()
+    try:
+        factory_result['payment'] = ServiceFactory.create_payment_provider(
+            factory_payment
+        ).create_payment(float(evento.obtener_presupuesto_efectivo()), singleton.get_moneda())
+        factory_result['venue'] = ServiceFactory.create_venue_provider(
+            factory_venue
+        ).book_venue(evento.fecha_inicio.date().isoformat(), evento.max_asistentes)
+        menus = ServiceFactory.create_catering_provider(factory_catering).get_menu_options()
+        factory_result['catering'] = menus
+    except ValueError as exc:
+        factory_result['error'] = str(exc)
+
+    access_level = 'guest'
+    if request.user.is_authenticated:
+        access_level = 'admin' if request.user.is_staff else 'user'
+        if evento.organizador_id == request.user.id:
+            access_level = 'organizer'
+    proxy = EventProxyFactory.create_proxy(str(evento.pk), access_level)
+    proxy.edit(
+        name=evento.nombre,
+        type=str(evento.tipo or evento.tipo_evento),
+        date=evento.fecha_inicio.isoformat(),
+        budget=float(evento.presupuesto or 0),
+        attendees=evento.max_asistentes,
+        status=bucket['state'],
+    )
+    proxy_view = proxy.view()
+    proxy_budget = proxy.view_budget()
+
+    all_events = Evento.objects.select_related('ubicacion').filter(
+        organizador=request.user,
+        evento_padre__isnull=True,
+    ).order_by('fecha_inicio')
+    strategy_events = [_event_to_strategy_dict(e) for e in all_events]
+    strategy_name = request.GET.get('strategy', 'budget')
+    strategy_criteria = request.GET.get('criteria', '')
+    try:
+        budget_criteria = float(strategy_criteria or evento.presupuesto or 0)
+    except (TypeError, ValueError):
+        budget_criteria = float(evento.presupuesto or 0)
+    try:
+        attendees_criteria = int(strategy_criteria or evento.max_asistentes)
+    except (TypeError, ValueError):
+        attendees_criteria = evento.max_asistentes
+    strategy_map = {
+        'budget': (FilterByBudget(), budget_criteria),
+        'attendees': (FilterByAttendees(), attendees_criteria),
+        'location': (FilterByLocation(), strategy_criteria or (evento.ubicacion.ciudad if evento.ubicacion else '')),
+        'date': (FilterByDate(), strategy_criteria or evento.fecha_inicio.date().isoformat()),
+    }
+    strategy, criteria = strategy_map.get(strategy_name, strategy_map['budget'])
+    strategy_filtered = EventFilter(strategy).apply_filter(strategy_events, criteria)
+    strategy_cost = CostCalculator(StandardCostCalculation()).calculate_cost(
+        float(evento.presupuesto or 0),
+        list(evento.decoradores or []),
+    )
+
+    collection = EventCollection()
+    for e in all_events:
+        collection.add_event(e)
+    iterator_mode = request.GET.get('iterator', 'normal')
+    if iterator_mode == 'reverse':
+        iterated_events = list(collection.get_reverse_iterator())
+    elif iterator_mode == 'filtered':
+        iterated_events = list(collection.get_filtered_iterator(lambda e: e.max_asistentes <= evento.max_asistentes))
+    else:
+        iterated_events = list(collection.get_iterator())
+    paginated_events = list(PaginatedEventIterator(list(collection.get_all()), page_size=3))
+
+    state_context = _restore_state_context(bucket['state'])
+    composite = _composite_from_event(evento)
+
+    visitor_components = _visitor_components_for_event(evento)
+    cost_visitor = CostCalculatorVisitor()
+    report_visitor = BudgetReportVisitor()
+    validation_visitor = ValidationVisitor()
+    for component in visitor_components:
+        component.accept(cost_visitor)
+        component.accept(report_visitor)
+        component.accept(validation_visitor)
+
+    return {
+        'abstract_type': abstract_type,
+        'abstract_components': abstract_components,
+        'factory_options': {
+            'payments': ServiceFactory.get_available_payment_providers(),
+            'venues': ServiceFactory.get_available_venue_providers(),
+            'caterings': ServiceFactory.get_available_catering_providers(),
+            'selected_payment': factory_payment,
+            'selected_venue': factory_venue,
+            'selected_catering': factory_catering,
+        },
+        'factory_result': factory_result,
+        'proxy': {
+            'access_level': access_level,
+            'view': proxy_view,
+            'budget': proxy_budget,
+            'log': proxy.get_access_log(),
+        },
+        'strategy': {
+            'name': strategy_name,
+            'criteria': criteria,
+            'results': strategy_filtered,
+            'cost': strategy_cost,
+        },
+        'iterator': {
+            'mode': iterator_mode,
+            'events': iterated_events,
+            'pages': paginated_events,
+        },
+        'state_machine': {
+            'status': state_context.get_status(),
+            'allowed_actions': state_context.get_allowed_actions(),
+            'history': state_context.get_status_history(),
+        },
+        'composite_summary': composite.obtener_resumen(),
+        'visitor': {
+            'component_count': len(visitor_components),
+            'total_cost': cost_visitor.total_cost,
+            'report': report_visitor.report,
+            'errors': validation_visitor.errors,
+        },
+    }
 
 
                                                                                 
@@ -321,6 +560,150 @@ def event_delete(request, pk):
         messages.success(request, f'Evento "{nombre}" eliminado.')
         return redirect('dashboard')
     return render(request, 'web/event_confirm_delete.html', {'evento': evento})
+
+
+@login_required
+def event_patterns(request, pk):
+    evento = get_object_or_404(
+        Evento.objects
+              .select_related('tipo', 'ubicacion', 'organizador',
+                              'catering_contratado', 'streaming_contratado')
+              .prefetch_related('subeventos'),
+        pk=pk,
+    )
+    if evento.organizador_id != request.user.id and not request.user.is_staff:
+        messages.error(request, 'No tienes permiso para gestionar los patrones de este evento.')
+        return redirect('dashboard')
+
+    session_key, bucket = _event_session_bucket(request, evento)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'run_facade':
+            vendors = [
+                contrato.proveedor.nombre
+                for contrato in evento.servicios_contratados.select_related('proveedor')
+            ] or ['Coordinacion interna']
+            facade_result = EventFacade().create_complete_event(
+                {
+                    'name': evento.nombre,
+                    'budget': float(evento.presupuesto or 0),
+                },
+                request.POST.get('payment_method', 'stripe'),
+                vendors,
+                request.user.email or f'{request.user.username}@example.com',
+            )
+            bucket['last_facade'] = facade_result
+            HistorialNotificacion.objects.create(
+                evento=evento,
+                tipo='evento_actualizado',
+                mensaje='Facade ejecuto alta coordinada de evento',
+                detalles=facade_result,
+                enviado_a='Web flow',
+            )
+            messages.success(request, 'Facade ejecutado y registrado en el flujo web.')
+
+        elif action == 'command_approve':
+            invoker = CommandInvoker()
+            command = ApproveEventCommand(str(evento.pk))
+            if invoker.execute_command(command):
+                evento.confirmado = True
+                evento.save(update_fields=['confirmado'])
+                bucket['commands'].extend(invoker.get_history())
+                HistorialNotificacion.objects.create(
+                    evento=evento,
+                    tipo='evento_estado_cambiÃ³',
+                    mensaje='Command aprobo el evento desde el flujo web',
+                    detalles={'history': invoker.get_history()},
+                    enviado_a='Web flow',
+                )
+                messages.success(request, 'Command ejecutado: evento marcado como confirmado.')
+
+        elif action == 'command_update_name':
+            new_name = request.POST.get('new_name', '').strip()
+            if new_name:
+                invoker = CommandInvoker()
+                command = UpdateEventCommand(str(evento.pk), 'nombre', new_name)
+                if invoker.execute_command(command):
+                    old_name = evento.nombre
+                    evento.nombre = new_name
+                    evento.save(update_fields=['nombre'])
+                    bucket['commands'].append(f'Update nombre: {old_name} -> {new_name}')
+                    messages.success(request, 'Command ejecutado: nombre actualizado.')
+
+        elif action == 'state_transition':
+            state_action = request.POST.get('state_action')
+            context = _restore_state_context(bucket['state'])
+            if state_action in context.get_allowed_actions():
+                getattr(context, state_action)()
+                bucket['state'] = context.get_status()
+                if bucket['state'] == 'completed':
+                    evento.confirmado = True
+                    evento.save(update_fields=['confirmado'])
+                HistorialNotificacion.objects.create(
+                    evento=evento,
+                    tipo='evento_estado_cambiÃ³',
+                    mensaje=f'State cambio a {bucket["state"]}',
+                    detalles={'action': state_action, 'state': bucket['state']},
+                    enviado_a='Web flow',
+                )
+                messages.success(request, f'State aplicado: {bucket["state"]}.')
+            else:
+                messages.error(request, 'Transicion de estado no permitida.')
+
+        elif action == 'mediator_send':
+            recipient = request.POST.get('recipient', 'Proveedor')
+            message = request.POST.get('message', '').strip()
+            if message:
+                mediator = EventMediator()
+                organizer = EventOrganizer('Organizador', mediator)
+                vendor = Vendor('Proveedor', mediator)
+                coordinator = EventCoordinator('Coordinador', mediator)
+                for colleague in (organizer, vendor, coordinator):
+                    mediator.register_colleague(colleague)
+                organizer.send(message, recipient)
+                bucket['mediator'].extend(mediator.get_message_log())
+                messages.success(request, 'Mediator envio el mensaje entre participantes.')
+
+        elif action == 'memento_save':
+            originator = EventOriginator(str(evento.pk))
+            originator.set_state(
+                name=evento.nombre,
+                type=str(evento.tipo or evento.tipo_evento),
+                date=evento.fecha_inicio.isoformat(),
+                budget=float(evento.presupuesto or 0),
+                status=bucket['state'],
+            )
+            checkpoint = originator.save_checkpoint().get_state()
+            bucket['mementos'].append(checkpoint)
+            messages.success(request, 'Memento guardo un checkpoint del evento.')
+
+        elif action == 'memento_restore':
+            try:
+                index = int(request.POST.get('checkpoint', -1))
+            except (TypeError, ValueError):
+                index = -1
+            if 0 <= index < len(bucket['mementos']):
+                checkpoint = bucket['mementos'][index]
+                evento.nombre = checkpoint.get('name', evento.nombre)
+                evento.presupuesto = checkpoint.get('budget', evento.presupuesto)
+                evento.save(update_fields=['nombre', 'presupuesto'])
+                bucket['state'] = checkpoint.get('status', bucket['state'])
+                messages.success(request, 'Memento restauro el checkpoint seleccionado.')
+            else:
+                messages.error(request, 'Checkpoint no valido.')
+
+        _save_event_session_bucket(request, session_key, bucket)
+        return redirect('event_patterns', pk=evento.pk)
+
+    context = _pattern_context(request, evento, bucket)
+    context.update({
+        'evento': evento,
+        'bucket': bucket,
+        'facade_result': bucket.get('last_facade'),
+    })
+    return render(request, 'web/event_patterns.html', context)
 
 
                                                                                
